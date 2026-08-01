@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gastromapa Rescue</title>
+    <meta
+      name="description"
+      content="Jednoduché vyhledávání podniků z Gastromapy přes synchronizovaný dataset."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Unofficial mirror</p>
+          <h1>Gastromapa pořád žije. Jen ji někdo schoval za appku.</h1>
+          <p class="lede">
+            Tahle jednoduchá web appka prohledává synchronizovaný dataset z
+            veřejně dostupného API. Bez loginu, bez app store cirkusu.
+          </p>
+        </div>
+        <div class="hero-stats">
+          <div class="stat-card">
+            <span class="stat-label">Naposledy synchronizováno</span>
+            <strong id="syncTime">Načítám…</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Počet podniků</span>
+            <strong id="recordCount">–</strong>
+          </div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel search-panel">
+          <label class="search-label" for="query">Hledej podnik, město nebo tag</label>
+          <div class="search-row">
+            <input
+              id="query"
+              type="search"
+              placeholder="Třeba Eska, Brno, kavárna, Lokál…"
+              autocomplete="off"
+            />
+            <button id="clearBtn" type="button">Reset</button>
+          </div>
+          <div class="filter-row">
+            <label for="tagFilter">Tag</label>
+            <select id="tagFilter">
+              <option value="">Všechny</option>
+            </select>
+          </div>
+          <p class="hint">
+            Hledání běží lokálně nad JSON snapshotem. Když API jednou chcípne,
+            aspoň nezmizí i výsledky.
+          </p>
+        </section>
+
+        <section class="results-column">
+          <div class="results-head">
+            <h2>Výsledky</h2>
+            <span id="resultMeta">–</span>
+          </div>
+          <div id="results" class="results-grid" aria-live="polite"></div>
+        </section>
+
+        <aside class="panel detail-panel">
+          <h2>Detail podniku</h2>
+          <div id="detail" class="detail-empty">
+            Klikni na výsledek vlevo. Tady se ukáže detail, otvíračka a odkazy.
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <template id="resultTemplate">
+      <article class="result-card">
+        <button class="result-hit" type="button">
+          <div class="result-top">
+            <h3></h3>
+            <span class="score-badge"></span>
+          </div>
+          <p class="result-address"></p>
+          <div class="tag-row"></div>
+        </button>
+      </article>
+    </template>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
