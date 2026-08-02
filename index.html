@@ -6,7 +6,7 @@
     <title>Žrádlomapa</title>
     <meta
       name="description"
-      content="Žrádlomapa je webová mapa podniků nad synchronizovaným datasetem."
+      content="Žrádlomapa je rychlý přehled podniků z veřejně dostupných dat. Hledejte podle názvu, města i typu a otevřete si detail na mapě."
     />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
@@ -36,24 +36,24 @@
       <header class="hero">
         <div class="hero-copy">
           <div class="hero-topline">
-            <p class="eyebrow">Unofficial mirror</p>
-            <span class="hero-badge">Live snapshot</span>
+            <p class="eyebrow">Neoficiální přehled</p>
+            <span class="hero-badge">Aktuální snapshot</span>
           </div>
           <h1>Žrádlomapa. Protože hlad je zlo.</h1>
           <p class="lede">
-            Tahle jednoduchá web appka prohledává synchronizovaný dataset z
-            veřejně dostupného API.
+            Rychlý přehled podniků z veřejně dostupných dat. Hledejte podle názvu,
+            města nebo typu a otevřete si detail bez zbytečného klikání.
           </p>
           <p class="hero-note">
-            Rychlý webový fallback pro chvíle, kdy tě originál tlačí jen do mobilní appky.
+            Když se vám nechce lovit podniky v aplikaci, tady je máte přehledně na jednom místě.
           </p>
           <div class="hero-actions">
-            <button id="openMapBtn" class="ghost-btn" type="button">Otevřít mapu ČR</button>
+            <button id="openMapBtn" class="ghost-btn" type="button">Otevřít mapu Česka</button>
           </div>
         </div>
         <div class="hero-stats">
           <div class="stat-card">
-            <span class="stat-label">Naposledy synchronizováno</span>
+            <span class="stat-label">Naposledy aktualizováno</span>
             <strong id="syncTime">Načítám…</strong>
           </div>
           <div class="stat-card">
@@ -62,8 +62,8 @@
           </div>
           <button id="openMapPreviewBtn" class="map-preview-card" type="button">
             <div class="map-preview-copy">
-              <span class="stat-label">Mapa míst</span>
-              <strong>Otevřít piny na mapě</strong>
+              <span class="stat-label">Mapa podniků</span>
+              <strong>Projít podniky na mapě</strong>
             </div>
             <div class="mini-map-canvas">
               <img
@@ -81,27 +81,27 @@
       <main class="layout">
         <section class="panel search-panel">
           <div class="panel-head">
-            <label class="search-label" for="query">Hledej podnik, město nebo tag</label>
-            <p class="panel-subtle">Fulltext nad lokálním snapshotem, bez čekání na API.</p>
+            <label class="search-label" for="query">Hledejte podle názvu, města nebo typu</label>
+            <p class="panel-subtle">Vyhledávání běží nad lokálním snapshotem, takže reaguje hned.</p>
           </div>
           <div class="search-row">
             <input
               id="query"
               type="search"
-              placeholder="Třeba Eska, Brno, kavárna, Lokál…"
+              placeholder="Třeba Eska, Brno, kavárna nebo Lokál…"
               autocomplete="off"
             />
-            <button id="clearBtn" type="button">Reset</button>
+            <button id="clearBtn" type="button">Vymazat</button>
           </div>
           <div class="filter-row">
-            <label for="tagFilter">Tag</label>
+            <label for="tagFilter">Typ</label>
             <select id="tagFilter">
-              <option value="">Všechny</option>
+              <option value="">Všechny typy</option>
             </select>
           </div>
           <p class="hint">
-            Hledání běží lokálně nad JSON snapshotem. Když API jednou chcípne,
-            aspoň nezmizí i výsledky.
+            Výsledky běží z lokální kopie dat. I když API zrovna stávkuje,
+            web zůstane použitelný.
           </p>
         </section>
 
@@ -126,7 +126,7 @@
           <button id="detailCloseBtn" class="detail-close-btn" type="button" aria-label="Zavřít detail">×</button>
         </div>
         <div id="detail" class="detail-empty">
-          Klikni na výsledek. Detail se otevře tady jako samostatná karta.
+          Vyberte si podnik ze seznamu a tady se otevře jeho detail.
         </div>
       </aside>
     </div>
@@ -136,8 +136,8 @@
         <div class="map-head">
           <div>
             <p class="eyebrow">Mapa Česka</p>
-            <h2>Všechny lokace na jedné mapě</h2>
-            <p id="mapMeta" class="panel-subtle">Načítám piny…</p>
+            <h2>Podniky přehledně na jedné mapě</h2>
+            <p id="mapMeta" class="panel-subtle">Načítám mapu…</p>
           </div>
           <div class="map-head-actions">
             <button id="locateUserBtn" class="ghost-btn" type="button">Moje poloha</button>
@@ -148,11 +148,11 @@
           <input
             id="mapQuery"
             type="search"
-            placeholder="Filtrovat mapu podle názvu, města nebo tagu…"
+            placeholder="Filtrovat podle názvu, města nebo typu…"
             autocomplete="off"
           />
           <select id="mapTagFilter">
-            <option value="">Všechny tagy</option>
+            <option value="">Všechny typy</option>
           </select>
         </div>
         <div id="mapCanvas" class="map-canvas" aria-label="Mapa podniků"></div>
