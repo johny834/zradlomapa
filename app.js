@@ -167,12 +167,12 @@ function paintResults() {
       tagRow.append(pill);
     }
 
-    button.addEventListener("click", () => selectRestaurant(item.id));
+    button.addEventListener("click", () => selectRestaurant(item.id, { scrollToDetail: true }));
     resultsNode.append(fragment);
   }
 }
 
-function selectRestaurant(restaurantId) {
+function selectRestaurant(restaurantId, options = {}) {
   const restaurant = dataset.find((item) => item.id === restaurantId);
 
   if (!restaurant) {
@@ -184,6 +184,10 @@ function selectRestaurant(restaurantId) {
   updateHash(restaurant);
   paintResults();
   paintDetail(restaurant);
+
+  if (options.scrollToDetail) {
+    scrollDetailIntoView();
+  }
 }
 
 function paintDetail(item) {
@@ -343,6 +347,17 @@ function updateHash(item) {
   if (window.location.hash !== nextHash) {
     history.replaceState(null, "", nextHash || window.location.pathname + window.location.search);
   }
+}
+
+function scrollDetailIntoView() {
+  if (!window.matchMedia("(max-width: 1180px)").matches) {
+    return;
+  }
+
+  document.querySelector(".detail-panel")?.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
 }
 
 function escapeHtml(value) {
