@@ -258,7 +258,7 @@ function paintResults() {
     const button = fragment.querySelector(".result-hit");
     const address = fragment.querySelector(".result-address");
 
-    fragment.querySelector("h3").textContent = item.name;
+    fragment.querySelector("h3").textContent = `${pickEmoji(item)} ${item.name}`;
     address.textContent = item.address;
     fragment.querySelector(".score-badge").textContent =
       queryInput.value.trim() ? `score ${score}` : item.mainTag?.name || "tip";
@@ -310,7 +310,7 @@ function paintDetail(item) {
   const safeIndex = Math.min(selectedImageIndex, Math.max(images.length - 1, 0));
   const activeImage = images[safeIndex];
   selectedImageIndex = safeIndex;
-  detailDrawerTitle.textContent = item.name;
+  detailDrawerTitle.textContent = `${pickEmoji(item)} ${item.name}`;
 
   detailNode.className = "detail-card";
   detailNode.innerHTML = `
@@ -318,7 +318,7 @@ function paintDetail(item) {
     <div class="detail-copy">
       <div class="detail-header">
         <div>
-          <h3 class="detail-title">${escapeHtml(item.name)}</h3>
+          <h3 class="detail-title">${escapeHtml(pickEmoji(item))} ${escapeHtml(item.name)}</h3>
           <p class="detail-address">${escapeHtml(item.address)}</p>
         </div>
         <div class="detail-meta">
@@ -599,7 +599,7 @@ function applyUserCenteredMapView() {
     .sort((a, b) => a.distanceKm - b.distanceKm)
     .slice(0, 40);
 
-  const closeEnough = nearby.filter((entry) => entry.distanceKm <= 40);
+  const closeEnough = nearby.filter((entry) => entry.distanceKm <= 20);
   const selection = closeEnough.length ? closeEnough : nearby.slice(0, 20);
   const bounds = selection.map((entry) => [entry.item.coordinates.latitude, entry.item.coordinates.longitude]);
   bounds.push([userCoords.latitude, userCoords.longitude]);
@@ -609,10 +609,10 @@ function applyUserCenteredMapView() {
   if (bounds.length > 1) {
     map.fitBounds(bounds, {
       padding: [40, 40],
-      maxZoom: 13
+      maxZoom: 15
     });
   } else {
-    map.setView([userCoords.latitude, userCoords.longitude], 13);
+    map.setView([userCoords.latitude, userCoords.longitude], 15);
   }
 
   const nearestCount = selection.length;
@@ -715,7 +715,7 @@ function paintMarkers(layerGroup, source, options = {}) {
     });
 
     if (options.clickable !== false) {
-      marker.bindTooltip(`<strong>${escapeHtml(item.name)}</strong><br>${escapeHtml(item.city || item.address)}`, {
+      marker.bindTooltip(`<strong>${escapeHtml(pickEmoji(item))} ${escapeHtml(item.name)}</strong><br>${escapeHtml(item.city || item.address)}`, {
         direction: "top",
         offset: [0, -8]
       });
