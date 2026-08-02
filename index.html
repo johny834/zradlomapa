@@ -8,6 +8,12 @@
       name="description"
       content="Žrádlomapa je nezávislá webová mapa podniků nad synchronizovaným datasetem."
     />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -32,6 +38,9 @@
           <p class="hero-note">
             Rychlý webový fallback pro chvíle, kdy tě originál tlačí jen do mobilní appky.
           </p>
+          <div class="hero-actions">
+            <button id="openMapBtn" class="ghost-btn" type="button">Otevřít mapu ČR</button>
+          </div>
         </div>
         <div class="hero-stats">
           <div class="stat-card">
@@ -98,6 +107,20 @@
       </aside>
     </div>
 
+    <div id="mapOverlay" class="map-overlay" hidden>
+      <div class="map-shell">
+        <div class="map-head">
+          <div>
+            <p class="eyebrow">Mapa Česka</p>
+            <h2>Všechny lokace na jedné mapě</h2>
+            <p id="mapMeta" class="panel-subtle">Načítám piny…</p>
+          </div>
+          <button id="closeMapBtn" class="detail-close-btn" type="button" aria-label="Zavřít mapu">×</button>
+        </div>
+        <div id="mapCanvas" class="map-canvas" aria-label="Mapa podniků"></div>
+      </div>
+    </div>
+
     <template id="resultTemplate">
       <article class="result-card">
         <button class="result-hit" type="button">
@@ -117,6 +140,11 @@
       </button>
     </template>
 
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

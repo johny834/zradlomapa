@@ -1,6 +1,11 @@
 const queryInput = document.querySelector("#query");
 const tagFilter = document.querySelector("#tagFilter");
 const clearBtn = document.querySelector("#clearBtn");
+const openMapBtn = document.querySelector("#openMapBtn");
+const closeMapBtn = document.querySelector("#closeMapBtn");
+const mapOverlayNode = document.querySelector("#mapOverlay");
+const mapMetaNode = document.querySelector("#mapMeta");
+const mapCanvasNode = document.querySelector("#mapCanvas");
 const resultsNode = document.querySelector("#results");
 const detailNode = document.querySelector("#detail");
 const detailOverlayNode = document.querySelector("#detailOverlay");
@@ -14,11 +19,15 @@ const resultTemplate = document.querySelector("#resultTemplate");
 const galleryThumbTemplate = document.querySelector("#galleryThumbTemplate");
 
 const dayNames = ["", "Po", "Ut", "St", "Ct", "Pa", "So", "Ne"];
+const defaultMapCenter = [49.8175, 15.473];
+const defaultMapZoom = 7;
 
 let dataset = [];
 let filtered = [];
 let selectedRestaurantId = null;
 let selectedImageIndex = 0;
+let map = null;
+let mapLayerGroup = null;
 
 boot();
 
@@ -52,6 +61,14 @@ function wireEvents() {
     runSearch();
   });
 
+  openMapBtn.addEventListener("click", openMap);
+  closeMapBtn.addEventListener("click", closeMap);
+  mapOverlayNode.addEventListener("click", (event) => {
+    if (event.target === mapOverlayNode) {
+      closeMap();
+    }
+  });
+
   detailBackdropNode.addEventListener("click", closeDetail);
   detailCloseBtn.addEventListener("click", closeDetail);
 
@@ -64,8 +81,15 @@ function wireEvents() {
   });
 
   window.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !detailOverlayNode.hidden) {
-      closeDetail();
+    if (event.key === "Escape") {
+      if (!mapOverlayNode.hidden) {
+        closeMap();
+        return;
+      }
+
+      if (!detailOverlayNode.hidden) {
+        closeDetail();
+      }
     }
   });
 }
@@ -104,6 +128,7 @@ function runSearch() {
   resultMetaNode.textContent = `${filtered.length} vysledku`;
   syncSelection();
   paintResults();
+  refreshMapMarkers();
 
   if (selectedRestaurantId) {
     const current = filtered.find(({ item }) => item.id === selectedRestaurantId)?.item;
@@ -168,7 +193,10 @@ function paintResults() {
     }
 
     if (item.images?.length) {
-      address.insertAdjacentHTML("afterend", `<p class="result-meta">${item.images.length} fotek · ${escapeHtml(item.city || "nezname misto")}</p>`);
+      address.insertAdjacentHTML(
+        "afterend",
+        `<p class="result-meta">${item.images.length} fotek · ${escapeHtml(item.city || "nezname misto")}</p>`
+      );
     } else {
       address.insertAdjacentHTML("afterend", `<p class="result-meta">${escapeHtml(item.city || "nezname misto")}</p>`);
     }
@@ -361,6 +389,8 @@ function updateHash(item) {
 }
 
 function openDetail() {
+  document.body.classList.remove("map-open");
+  mapOverlayNode.hidden = true;
   document.body.classList.add("detail-open");
   detailOverlayNode.hidden = false;
 }
@@ -373,6 +403,92 @@ function closeDetail(options = {}) {
     selectedRestaurantId = null;
     updateHash(null);
     paintResults();
+  }
+}
+
+function openMap() {
+  document.body.classList.remove("detail-open");
+  detailOverlayNode.hidden = true;
+  document.body.classList.add("map-open");
+  mapOverlayNode.hidden = false;
+  initMapIfNeeded();
+  refreshMapMarkers();
+  window.setTimeout(() => map?.invalidateSize(), 50);
+}
+
+function closeMap() {
+  document.body.classList.remove("map-open");
+  mapOverlayNode.hidden = true;
+}
+
+function initMapIfNeeded() {
+  if (map || !window.L) {
+    return;
+  }
+
+  map = window.L.map(mapCanvasNode, {
+    zoomControl: true,
+    minZoom: 6
+  }).setView(defaultMapCenter, defaultMapZoom);
+
+  window.L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  }).addTo(map);
+
+  mapLayerGroup = window.L.layerGroup().addTo(map);
+}
+
+function refreshMapMarkers() {
+  if (!map || !mapLayerGroup) {
+    return;
+  }
+
+  mapLayerGroup.clearLayers();
+
+  const source = filtered.length ? filtered.map(({ item }) => item) : dataset;
+  const bounds = [];
+
+  for (const item of source) {
+    const { latitude, longitude } = item.coordinates;
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      continue;
+    }
+
+    const marker = window.L.circleMarker([latitude, longitude], {
+      radius: 5,
+      weight: 1,
+      color: "#ffd7b8",
+      fillColor: "#ff8a3d",
+      fillOpacity: 0.88
+    });
+
+    marker.bindTooltip(`<strong>${escapeHtml(item.name)}</strong><br>${escapeHtml(item.city || item.address)}`, {
+      direction: "top",
+      offset: [0, -8]
+    });
+
+    marker.on("click", () => {
+      closeMap();
+      selectRestaurant(item.id);
+    });
+
+    marker.addTo(mapLayerGroup);
+    bounds.push([latitude, longitude]);
+  }
+
+  mapMetaNode.textContent =
+    filtered.length && filtered.length !== dataset.length
+      ? `${filtered.length} zobrazených pinů podle aktuálního filtru`
+      : `${source.length} pinů napříč Českem`;
+
+  if (bounds.length) {
+    map.fitBounds(bounds, {
+      padding: [40, 40],
+      maxZoom: 13
+    });
+  } else {
+    map.setView(defaultMapCenter, defaultMapZoom);
   }
 }
 
