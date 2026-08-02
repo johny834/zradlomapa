@@ -79,14 +79,23 @@
           </div>
           <div id="results" class="results-grid" aria-live="polite"></div>
         </section>
-
-        <aside class="panel detail-panel">
-          <h2>Detail podniku</h2>
-          <div id="detail" class="detail-empty">
-            Klikni na výsledek vlevo. Tady se ukáže detail, otvíračka a odkazy.
-          </div>
-        </aside>
       </main>
+    </div>
+
+    <div id="detailOverlay" class="detail-overlay" hidden>
+      <button id="detailBackdrop" class="detail-backdrop" type="button" aria-label="Zavřít detail"></button>
+      <aside class="detail-drawer" aria-labelledby="detailDrawerTitle">
+        <div class="detail-drawer-head">
+          <div>
+            <p class="eyebrow">Detail místa</p>
+            <h2 id="detailDrawerTitle">Podnik</h2>
+          </div>
+          <button id="detailCloseBtn" class="detail-close-btn" type="button" aria-label="Zavřít detail">×</button>
+        </div>
+        <div id="detail" class="detail-empty">
+          Klikni na výsledek. Detail se otevře tady jako samostatná karta.
+        </div>
+      </aside>
     </div>
 
     <template id="resultTemplate">

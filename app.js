@@ -3,22 +3,17 @@ const tagFilter = document.querySelector("#tagFilter");
 const clearBtn = document.querySelector("#clearBtn");
 const resultsNode = document.querySelector("#results");
 const detailNode = document.querySelector("#detail");
+const detailOverlayNode = document.querySelector("#detailOverlay");
+const detailBackdropNode = document.querySelector("#detailBackdrop");
+const detailCloseBtn = document.querySelector("#detailCloseBtn");
+const detailDrawerTitle = document.querySelector("#detailDrawerTitle");
 const syncTimeNode = document.querySelector("#syncTime");
 const recordCountNode = document.querySelector("#recordCount");
 const resultMetaNode = document.querySelector("#resultMeta");
 const resultTemplate = document.querySelector("#resultTemplate");
 const galleryThumbTemplate = document.querySelector("#galleryThumbTemplate");
 
-const dayNames = [
-  "",
-  "Po",
-  "Ut",
-  "St",
-  "Ct",
-  "Pa",
-  "So",
-  "Ne"
-];
+const dayNames = ["", "Po", "Ut", "St", "Ct", "Pa", "So", "Ne"];
 
 let dataset = [];
 let filtered = [];
@@ -56,11 +51,21 @@ function wireEvents() {
     tagFilter.value = "";
     runSearch();
   });
+
+  detailBackdropNode.addEventListener("click", closeDetail);
+  detailCloseBtn.addEventListener("click", closeDetail);
+
   window.addEventListener("hashchange", () => {
     const previousId = selectedRestaurantId;
     restoreSelectionFromHash();
     if (selectedRestaurantId !== previousId) {
       runSearch();
+    }
+  });
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !detailOverlayNode.hidden) {
+      closeDetail();
     }
   });
 }
@@ -100,13 +105,14 @@ function runSearch() {
   syncSelection();
   paintResults();
 
-  if (filtered[0]) {
-    const current = filtered.find(({ item }) => item.id === selectedRestaurantId)?.item ?? filtered[0].item;
-    paintDetail(current);
+  if (selectedRestaurantId) {
+    const current = filtered.find(({ item }) => item.id === selectedRestaurantId)?.item;
+    if (current) {
+      paintDetail(current);
+      openDetail();
+    }
   } else {
-    selectedRestaurantId = null;
-    detailNode.className = "detail-empty";
-    detailNode.textContent = "Nic. Zkus kratsi dotaz, jine mesto nebo vyhod tag filtr.";
+    closeDetail({ clearHash: false });
   }
 }
 
@@ -117,10 +123,9 @@ function syncSelection() {
     return;
   }
 
-  const next = filtered[0]?.item ?? null;
-  selectedRestaurantId = next?.id ?? null;
-  selectedImageIndex = 0;
-  updateHash(next);
+  if (window.location.hash) {
+    selectedRestaurantId = null;
+  }
 }
 
 function scoreItem(item, query) {
@@ -143,20 +148,29 @@ function paintResults() {
 
   if (!filtered.length) {
     resultsNode.innerHTML =
-      '<div class="empty-state">Nic jsem nenasel. Tady to neni Google, zkus presnejsi jmeno nebo mesto.</div>';
+      '<div class="empty-state">Nic jsem nenasel. Zkus presnejsi jmeno, mesto nebo vyhod tag filtr.</div>';
     return;
   }
 
   for (const { item, score } of filtered) {
     const fragment = resultTemplate.content.cloneNode(true);
     const button = fragment.querySelector(".result-hit");
+    const address = fragment.querySelector(".result-address");
+
     fragment.querySelector("h3").textContent = item.name;
-    fragment.querySelector(".result-address").textContent = item.address;
-    fragment.querySelector(".score-badge").textContent = queryInput.value.trim() ? `score ${score}` : item.mainTag?.name || "tip";
+    address.textContent = item.address;
+    fragment.querySelector(".score-badge").textContent =
+      queryInput.value.trim() ? `score ${score}` : item.mainTag?.name || "tip";
 
     if (item.id === selectedRestaurantId) {
       button.classList.add("is-active");
       button.setAttribute("aria-current", "true");
+    }
+
+    if (item.images?.length) {
+      address.insertAdjacentHTML("afterend", `<p class="result-meta">${item.images.length} fotek · ${escapeHtml(item.city || "nezname misto")}</p>`);
+    } else {
+      address.insertAdjacentHTML("afterend", `<p class="result-meta">${escapeHtml(item.city || "nezname misto")}</p>`);
     }
 
     const tagRow = fragment.querySelector(".tag-row");
@@ -167,12 +181,12 @@ function paintResults() {
       tagRow.append(pill);
     }
 
-    button.addEventListener("click", () => selectRestaurant(item.id, { scrollToDetail: true }));
+    button.addEventListener("click", () => selectRestaurant(item.id));
     resultsNode.append(fragment);
   }
 }
 
-function selectRestaurant(restaurantId, options = {}) {
+function selectRestaurant(restaurantId) {
   const restaurant = dataset.find((item) => item.id === restaurantId);
 
   if (!restaurant) {
@@ -184,10 +198,7 @@ function selectRestaurant(restaurantId, options = {}) {
   updateHash(restaurant);
   paintResults();
   paintDetail(restaurant);
-
-  if (options.scrollToDetail) {
-    scrollDetailIntoView();
-  }
+  openDetail();
 }
 
 function paintDetail(item) {
@@ -195,6 +206,7 @@ function paintDetail(item) {
   const safeIndex = Math.min(selectedImageIndex, Math.max(images.length - 1, 0));
   const activeImage = images[safeIndex];
   selectedImageIndex = safeIndex;
+  detailDrawerTitle.textContent = item.name;
 
   detailNode.className = "detail-card";
   detailNode.innerHTML = `
@@ -284,7 +296,7 @@ function wireGallery(item) {
 
 function renderDescription(description) {
   if (!description) {
-    return '<p>Bez popisu.</p>';
+    return "<p>Bez popisu.</p>";
   }
 
   return description
@@ -333,13 +345,12 @@ function restoreSelectionFromHash() {
   const token = decodeURIComponent(window.location.hash.replace(/^#/, "").trim());
 
   if (!token) {
+    selectedRestaurantId = null;
     return;
   }
 
   const match = dataset.find((item) => item.slug === token || String(item.id) === token);
-  if (match) {
-    selectedRestaurantId = match.id;
-  }
+  selectedRestaurantId = match?.id ?? null;
 }
 
 function updateHash(item) {
@@ -349,15 +360,20 @@ function updateHash(item) {
   }
 }
 
-function scrollDetailIntoView() {
-  if (!window.matchMedia("(max-width: 1180px)").matches) {
-    return;
-  }
+function openDetail() {
+  document.body.classList.add("detail-open");
+  detailOverlayNode.hidden = false;
+}
 
-  document.querySelector(".detail-panel")?.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
-  });
+function closeDetail(options = {}) {
+  document.body.classList.remove("detail-open");
+  detailOverlayNode.hidden = true;
+
+  if (options.clearHash !== false) {
+    selectedRestaurantId = null;
+    updateHash(null);
+    paintResults();
+  }
 }
 
 function escapeHtml(value) {
