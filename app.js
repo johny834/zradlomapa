@@ -4,6 +4,7 @@ const clearBtn = document.querySelector("#clearBtn");
 const openMapBtn = document.querySelector("#openMapBtn");
 const openMapPreviewBtn = document.querySelector("#openMapPreviewBtn");
 const closeMapBtn = document.querySelector("#closeMapBtn");
+const locateUserBtn = document.querySelector("#locateUserBtn");
 const mapOverlayNode = document.querySelector("#mapOverlay");
 const mapMetaNode = document.querySelector("#mapMeta");
 const mapCanvasNode = document.querySelector("#mapCanvas");
@@ -25,6 +26,12 @@ const galleryThumbTemplate = document.querySelector("#galleryThumbTemplate");
 const dayNames = ["", "Po", "Ut", "St", "Ct", "Pa", "So", "Ne"];
 const defaultMapCenter = [49.8175, 15.473];
 const defaultMapZoom = 7;
+const czBounds = {
+  minLat: 48.45,
+  maxLat: 51.1,
+  minLon: 12.05,
+  maxLon: 18.95
+};
 
 let dataset = [];
 let filtered = [];
@@ -32,8 +39,8 @@ let selectedRestaurantId = null;
 let selectedImageIndex = 0;
 let map = null;
 let mapLayerGroup = null;
-let miniMap = null;
-let miniMapLayerGroup = null;
+let userLocationMarker = null;
+let userCoords = null;
 let syncingMapControls = false;
 
 boot();
@@ -51,7 +58,6 @@ async function boot() {
     wireEvents();
     syncMapControlsFromMain();
     restoreSelectionFromHash();
-    initMiniMapIfNeeded();
     runSearch();
   } catch (error) {
     syncTimeNode.textContent = "Chyba";
@@ -98,6 +104,7 @@ function wireEvents() {
   openMapBtn.addEventListener("click", openMap);
   openMapPreviewBtn.addEventListener("click", openMap);
   closeMapBtn.addEventListener("click", closeMap);
+  locateUserBtn.addEventListener("click", () => focusUserLocation(true));
   mapOverlayNode.addEventListener("click", (event) => {
     if (event.target === mapOverlayNode) {
       closeMap();
@@ -178,7 +185,7 @@ function runSearch() {
   syncSelection();
   paintResults();
   refreshMapMarkers();
-  refreshMiniMapMarkers();
+  renderMiniMapSnapshot();
 
   if (selectedRestaurantId) {
     const current = filtered.find(({ item }) => item.id === selectedRestaurantId)?.item;
@@ -465,6 +472,7 @@ function openMap() {
   initMapIfNeeded();
   refreshMapMarkers();
   window.setTimeout(() => map?.invalidateSize(), 50);
+  focusUserLocation(false);
 }
 
 function closeMap() {
@@ -490,25 +498,160 @@ function initMapIfNeeded() {
   mapLayerGroup = window.L.layerGroup().addTo(map);
 }
 
-function initMiniMapIfNeeded() {
-  if (miniMap || !window.L) {
+function focusUserLocation(forcePrompt) {
+  if (userCoords && !forcePrompt) {
+    applyUserCenteredMapView();
     return;
   }
 
-  miniMap = window.L.map(miniMapCanvasNode, {
-    zoomControl: false,
-    attributionControl: false,
-    dragging: false,
-    scrollWheelZoom: false,
-    doubleClickZoom: false,
-    boxZoom: false,
-    keyboard: false,
-    tap: false,
-    touchZoom: false
-  }).setView(defaultMapCenter, defaultMapZoom);
+  if (!navigator.geolocation) {
+    mapMetaNode.textContent = "Geolokace v tomhle prohlížeči není k dispozici.";
+    return;
+  }
 
-  window.L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png").addTo(miniMap);
-  miniMapLayerGroup = window.L.layerGroup().addTo(miniMap);
+  locateUserBtn.disabled = true;
+  locateUserBtn.textContent = "Hledám polohu…";
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      userCoords = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
+      };
+      paintUserLocation();
+      applyUserCenteredMapView();
+      locateUserBtn.disabled = false;
+      locateUserBtn.textContent = "Moje poloha";
+    },
+    () => {
+      locateUserBtn.disabled = false;
+      locateUserBtn.textContent = "Moje poloha";
+      mapMetaNode.textContent = "Polohu se nepodařilo získat. Zůstávám na celé ČR.";
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 7000,
+      maximumAge: 300000
+    }
+  );
+}
+
+function paintUserLocation() {
+  if (!map || !userCoords || !window.L) {
+    return;
+  }
+
+  if (userLocationMarker) {
+    userLocationMarker.setLatLng([userCoords.latitude, userCoords.longitude]);
+    return;
+  }
+
+  userLocationMarker = window.L.circleMarker([userCoords.latitude, userCoords.longitude], {
+    radius: 8,
+    weight: 2,
+    color: "#ffffff",
+    fillColor: "#58d6ff",
+    fillOpacity: 0.95
+  })
+    .bindTooltip("Tvoje poloha", {
+      direction: "top",
+      offset: [0, -8]
+    })
+    .addTo(map);
+}
+
+function applyUserCenteredMapView() {
+  if (!map || !userCoords) {
+    return;
+  }
+
+  const source = filtered.length ? filtered.map(({ item }) => item) : dataset;
+  const nearby = source
+    .map((item) => ({
+      item,
+      distanceKm: haversineKm(
+        userCoords.latitude,
+        userCoords.longitude,
+        item.coordinates.latitude,
+        item.coordinates.longitude
+      )
+    }))
+    .filter((entry) => Number.isFinite(entry.distanceKm))
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+    .slice(0, 40);
+
+  const closeEnough = nearby.filter((entry) => entry.distanceKm <= 40);
+  const selection = closeEnough.length ? closeEnough : nearby.slice(0, 20);
+  const bounds = selection.map((entry) => [entry.item.coordinates.latitude, entry.item.coordinates.longitude]);
+  bounds.push([userCoords.latitude, userCoords.longitude]);
+
+  paintUserLocation();
+
+  if (bounds.length > 1) {
+    map.fitBounds(bounds, {
+      padding: [40, 40],
+      maxZoom: 13
+    });
+  } else {
+    map.setView([userCoords.latitude, userCoords.longitude], 13);
+  }
+
+  const nearestCount = selection.length;
+  mapMetaNode.textContent = nearestCount
+    ? `${nearestCount} nejbližších pinů v okolí tvojí polohy`
+    : "Poloha nalezena, ale v okolí jsem nic nenašel.";
+}
+
+function renderMiniMapSnapshot() {
+  const source = filtered.length ? filtered.map(({ item }) => item) : dataset;
+  const points = source
+    .filter((item) => Number.isFinite(item.coordinates.latitude) && Number.isFinite(item.coordinates.longitude))
+    .map((item) => projectToSnapshot(item.coordinates.latitude, item.coordinates.longitude));
+
+  const width = 600;
+  const height = 360;
+  const circles = points
+    .slice(0, 220)
+    .map(
+      (point) =>
+        `<circle cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="4.2" fill="#ff8a3d" fill-opacity="0.9" stroke="#ffd7b8" stroke-width="1.2" />`
+    )
+    .join("");
+
+  const userCircle = userCoords
+    ? (() => {
+        const point = projectToSnapshot(userCoords.latitude, userCoords.longitude);
+        return `<circle cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="6.5" fill="#58d6ff" stroke="#ffffff" stroke-width="2" />`;
+      })()
+    : "";
+
+  miniMapCanvasNode.innerHTML = `
+    <svg class="mini-map-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Náhled mapy Česka s piny podniků">
+      <defs>
+        <linearGradient id="miniMapBg" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="#181b22" />
+          <stop offset="100%" stop-color="#0e1016" />
+        </linearGradient>
+      </defs>
+      <rect width="${width}" height="${height}" fill="url(#miniMapBg)" />
+      <path d="M78 92 L144 54 L234 70 L286 44 L380 72 L470 98 L526 162 L500 254 L428 298 L318 316 L226 284 L156 300 L98 240 L70 160 Z" fill="#202633" stroke="#3b4356" stroke-width="3" opacity="0.95" />
+      ${circles}
+      ${userCircle}
+    </svg>
+  `;
+}
+
+function projectToSnapshot(latitude, longitude) {
+  const width = 600;
+  const height = 360;
+  const padding = 36;
+  const xRatio = (longitude - czBounds.minLon) / (czBounds.maxLon - czBounds.minLon);
+  const yRatio = 1 - (latitude - czBounds.minLat) / (czBounds.maxLat - czBounds.minLat);
+
+  return {
+    x: padding + xRatio * (width - padding * 2),
+    y: padding + yRatio * (height - padding * 2)
+  };
 }
 
 function refreshMapMarkers() {
@@ -518,6 +661,12 @@ function refreshMapMarkers() {
 
   const source = filtered.length ? filtered.map(({ item }) => item) : dataset;
   const bounds = paintMarkers(mapLayerGroup, source, { clickable: true });
+  paintUserLocation();
+
+  if (userCoords) {
+    applyUserCenteredMapView();
+    return;
+  }
 
   mapMetaNode.textContent =
     filtered.length && filtered.length !== dataset.length
@@ -525,16 +674,6 @@ function refreshMapMarkers() {
       : `${source.length} pinů napříč Českem`;
 
   fitMapToBounds(map, bounds);
-}
-
-function refreshMiniMapMarkers() {
-  if (!miniMap || !miniMapLayerGroup) {
-    return;
-  }
-
-  const source = filtered.length ? filtered.map(({ item }) => item) : dataset;
-  const bounds = paintMarkers(miniMapLayerGroup, source, { clickable: false, radius: 4 });
-  fitMapToBounds(miniMap, bounds, 9);
 }
 
 function paintMarkers(layerGroup, source, options = {}) {
@@ -587,6 +726,18 @@ function fitMapToBounds(instance, bounds, maxZoom = 13) {
   } else {
     instance.setView(defaultMapCenter, defaultMapZoom);
   }
+}
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const toRad = (value) => (value * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusKm * c;
 }
 
 function escapeHtml(value) {
