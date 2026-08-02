@@ -1,6 +1,6 @@
-# Gastromapa Rescue
+# Žrádlomapa
 
-Jednoduchá statická web appka nad datasetem z veřejně dostupného Gastromapa API.
+Jednoduchá statická web appka nad synchronizovaným datasetem podniků.
 
 ## Jak to funguje
 

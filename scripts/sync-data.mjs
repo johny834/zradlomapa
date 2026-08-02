@@ -11,7 +11,7 @@ async function main() {
     const url = `${API_BASE}?limit=${PAGE_SIZE}&offset=${offset}`;
     const response = await fetch(url, {
       headers: {
-        "user-agent": "gastromapa-web-sync/0.1"
+        "user-agent": "zradlomapa-web-sync/0.1"
       }
     });
 
