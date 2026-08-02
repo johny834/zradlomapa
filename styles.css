@@ -254,7 +254,7 @@ a {
 }
 
 .mini-map-canvas::before {
-  content: "Klikni pro full mapu";
+  content: "Klikni sem";
   position: absolute;
   left: 14px;
   bottom: 14px;
