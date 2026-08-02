@@ -163,7 +163,7 @@ a {
   margin: 18px 0 14px;
   max-width: 9ch;
   font-size: clamp(2.9rem, 6vw, 5.8rem);
-  line-height: 0.9;
+  line-height: 1.02;
   letter-spacing: -0.08em;
   text-wrap: balance;
 }
@@ -838,6 +838,7 @@ a {
   .hero h1 {
     max-width: none;
     font-size: 2.8rem;
+    line-height: 1.06;
   }
 
   .hero-stats {
@@ -872,6 +873,26 @@ a {
     align-items: end;
   }
 
+  .map-shell {
+    height: min(100dvh, 100svh);
+    max-height: none;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .map-canvas {
+    min-height: 340px;
+  }
+
+  .map-head-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: 100%;
+  }
+
+  .map-head-actions .ghost-btn {
+    width: 100%;
+  }
+
   .detail-meta {
     justify-items: start;
     text-align: left;
@@ -888,6 +909,21 @@ a {
 }
 
 @media (max-width: 520px) {
+  .hero h1 {
+    font-size: 2.45rem;
+    line-height: 1.08;
+  }
+
+  .map-shell {
+    height: 100dvh;
+    border-radius: 24px 24px 0 0;
+    padding: 14px 14px max(14px, env(safe-area-inset-bottom));
+  }
+
+  .map-canvas {
+    min-height: 300px;
+  }
+
   .gallery-strip {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
