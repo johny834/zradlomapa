@@ -2,10 +2,14 @@ const queryInput = document.querySelector("#query");
 const tagFilter = document.querySelector("#tagFilter");
 const clearBtn = document.querySelector("#clearBtn");
 const openMapBtn = document.querySelector("#openMapBtn");
+const openMapPreviewBtn = document.querySelector("#openMapPreviewBtn");
 const closeMapBtn = document.querySelector("#closeMapBtn");
 const mapOverlayNode = document.querySelector("#mapOverlay");
 const mapMetaNode = document.querySelector("#mapMeta");
 const mapCanvasNode = document.querySelector("#mapCanvas");
+const miniMapCanvasNode = document.querySelector("#miniMapCanvas");
+const mapQueryInput = document.querySelector("#mapQuery");
+const mapTagFilter = document.querySelector("#mapTagFilter");
 const resultsNode = document.querySelector("#results");
 const detailNode = document.querySelector("#detail");
 const detailOverlayNode = document.querySelector("#detailOverlay");
@@ -28,6 +32,9 @@ let selectedRestaurantId = null;
 let selectedImageIndex = 0;
 let map = null;
 let mapLayerGroup = null;
+let miniMap = null;
+let miniMapLayerGroup = null;
+let syncingMapControls = false;
 
 boot();
 
@@ -42,7 +49,9 @@ async function boot() {
 
     hydrateTagFilter(dataset);
     wireEvents();
+    syncMapControlsFromMain();
     restoreSelectionFromHash();
+    initMiniMapIfNeeded();
     runSearch();
   } catch (error) {
     syncTimeNode.textContent = "Chyba";
@@ -53,15 +62,41 @@ async function boot() {
 }
 
 function wireEvents() {
-  queryInput.addEventListener("input", runSearch);
-  tagFilter.addEventListener("change", runSearch);
+  queryInput.addEventListener("input", () => {
+    syncMapControlsFromMain();
+    runSearch();
+  });
+  tagFilter.addEventListener("change", () => {
+    syncMapControlsFromMain();
+    runSearch();
+  });
   clearBtn.addEventListener("click", () => {
     queryInput.value = "";
     tagFilter.value = "";
+    syncMapControlsFromMain();
+    runSearch();
+  });
+
+  mapQueryInput.addEventListener("input", () => {
+    if (syncingMapControls) {
+      return;
+    }
+
+    queryInput.value = mapQueryInput.value;
+    runSearch();
+  });
+
+  mapTagFilter.addEventListener("change", () => {
+    if (syncingMapControls) {
+      return;
+    }
+
+    tagFilter.value = mapTagFilter.value;
     runSearch();
   });
 
   openMapBtn.addEventListener("click", openMap);
+  openMapPreviewBtn.addEventListener("click", openMap);
   closeMapBtn.addEventListener("click", closeMap);
   mapOverlayNode.addEventListener("click", (event) => {
     if (event.target === mapOverlayNode) {
@@ -103,12 +138,26 @@ function hydrateTagFilter(restaurants) {
     }
   }
 
-  for (const tagName of [...tags].sort((a, b) => a.localeCompare(b, "cs"))) {
-    const option = document.createElement("option");
-    option.value = tagName;
-    option.textContent = tagName;
-    tagFilter.append(option);
+  const sortedTags = [...tags].sort((a, b) => a.localeCompare(b, "cs"));
+  const selects = [tagFilter, mapTagFilter];
+
+  for (const select of selects) {
+    select.innerHTML = '<option value="">Všechny tagy</option>';
+
+    for (const tagName of sortedTags) {
+      const option = document.createElement("option");
+      option.value = tagName;
+      option.textContent = tagName;
+      select.append(option);
+    }
   }
+}
+
+function syncMapControlsFromMain() {
+  syncingMapControls = true;
+  mapQueryInput.value = queryInput.value;
+  mapTagFilter.value = tagFilter.value;
+  syncingMapControls = false;
 }
 
 function runSearch() {
@@ -129,6 +178,7 @@ function runSearch() {
   syncSelection();
   paintResults();
   refreshMapMarkers();
+  refreshMiniMapMarkers();
 
   if (selectedRestaurantId) {
     const current = filtered.find(({ item }) => item.id === selectedRestaurantId)?.item;
@@ -411,6 +461,7 @@ function openMap() {
   detailOverlayNode.hidden = true;
   document.body.classList.add("map-open");
   mapOverlayNode.hidden = false;
+  syncMapControlsFromMain();
   initMapIfNeeded();
   refreshMapMarkers();
   window.setTimeout(() => map?.invalidateSize(), 50);
@@ -439,14 +490,55 @@ function initMapIfNeeded() {
   mapLayerGroup = window.L.layerGroup().addTo(map);
 }
 
+function initMiniMapIfNeeded() {
+  if (miniMap || !window.L) {
+    return;
+  }
+
+  miniMap = window.L.map(miniMapCanvasNode, {
+    zoomControl: false,
+    attributionControl: false,
+    dragging: false,
+    scrollWheelZoom: false,
+    doubleClickZoom: false,
+    boxZoom: false,
+    keyboard: false,
+    tap: false,
+    touchZoom: false
+  }).setView(defaultMapCenter, defaultMapZoom);
+
+  window.L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png").addTo(miniMap);
+  miniMapLayerGroup = window.L.layerGroup().addTo(miniMap);
+}
+
 function refreshMapMarkers() {
   if (!map || !mapLayerGroup) {
     return;
   }
 
-  mapLayerGroup.clearLayers();
+  const source = filtered.length ? filtered.map(({ item }) => item) : dataset;
+  const bounds = paintMarkers(mapLayerGroup, source, { clickable: true });
+
+  mapMetaNode.textContent =
+    filtered.length && filtered.length !== dataset.length
+      ? `${filtered.length} zobrazených pinů podle aktuálního filtru`
+      : `${source.length} pinů napříč Českem`;
+
+  fitMapToBounds(map, bounds);
+}
+
+function refreshMiniMapMarkers() {
+  if (!miniMap || !miniMapLayerGroup) {
+    return;
+  }
 
   const source = filtered.length ? filtered.map(({ item }) => item) : dataset;
+  const bounds = paintMarkers(miniMapLayerGroup, source, { clickable: false, radius: 4 });
+  fitMapToBounds(miniMap, bounds, 9);
+}
+
+function paintMarkers(layerGroup, source, options = {}) {
+  layerGroup.clearLayers();
   const bounds = [];
 
   for (const item of source) {
@@ -456,39 +548,44 @@ function refreshMapMarkers() {
     }
 
     const marker = window.L.circleMarker([latitude, longitude], {
-      radius: 5,
+      radius: options.radius || 5,
       weight: 1,
       color: "#ffd7b8",
       fillColor: "#ff8a3d",
       fillOpacity: 0.88
     });
 
-    marker.bindTooltip(`<strong>${escapeHtml(item.name)}</strong><br>${escapeHtml(item.city || item.address)}`, {
-      direction: "top",
-      offset: [0, -8]
-    });
+    if (options.clickable !== false) {
+      marker.bindTooltip(`<strong>${escapeHtml(item.name)}</strong><br>${escapeHtml(item.city || item.address)}`, {
+        direction: "top",
+        offset: [0, -8]
+      });
 
-    marker.on("click", () => {
-      closeMap();
-      selectRestaurant(item.id);
-    });
+      marker.on("click", () => {
+        closeMap();
+        selectRestaurant(item.id);
+      });
+    }
 
-    marker.addTo(mapLayerGroup);
+    marker.addTo(layerGroup);
     bounds.push([latitude, longitude]);
   }
 
-  mapMetaNode.textContent =
-    filtered.length && filtered.length !== dataset.length
-      ? `${filtered.length} zobrazených pinů podle aktuálního filtru`
-      : `${source.length} pinů napříč Českem`;
+  return bounds;
+}
+
+function fitMapToBounds(instance, bounds, maxZoom = 13) {
+  if (!instance) {
+    return;
+  }
 
   if (bounds.length) {
-    map.fitBounds(bounds, {
+    instance.fitBounds(bounds, {
       padding: [40, 40],
-      maxZoom: 13
+      maxZoom
     });
   } else {
-    map.setView(defaultMapCenter, defaultMapZoom);
+    instance.setView(defaultMapCenter, defaultMapZoom);
   }
 }
 
