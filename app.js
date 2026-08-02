@@ -26,8 +26,8 @@ const dayNames = ["", "Po", "Ut", "St", "Ct", "Pa", "So", "Ne"];
 const defaultMapCenter = [49.8175, 15.473];
 const defaultMapZoom = 7;
 const DATASET_SOURCES = [
-  { url: "./data/restaurants.json", label: "live dataset" },
-  { url: "./data/restaurants-backup.json", label: "github zaloha" }
+  { url: "./data/restaurants.json", label: "aktuální snapshot" },
+  { url: "./data/restaurants-backup.json", label: "GitHub záloha" }
 ];
 const DATASET_CACHE_KEY = "zradlomapa:last-good-snapshot";
 const emojiByTagType = {
@@ -78,8 +78,9 @@ async function boot() {
   } catch (error) {
     syncTimeNode.textContent = "Chyba";
     resultsNode.innerHTML =
-      '<div class="empty-state">Nepodarilo se nacist dataset. Zkus refresh nebo znovu spust synchronizaci.</div>';
-    detailNode.textContent = error.message;
+      '<div class="empty-state">Nepodařilo se načíst data. Obnovte stránku nebo spusťte synchronizaci znovu.</div>';
+    detailNode.innerHTML =
+      '<div class="empty-state">Detail zatím není k dispozici, protože se nepodařilo načíst podklady.</div>';
   }
 }
 
@@ -105,7 +106,7 @@ async function loadDatasetWithFallback() {
 
   const cachedPayload = readCachedPayload();
   if (cachedPayload) {
-    return { payload: cachedPayload, sourceLabel: "lokalni cache", fromCache: true };
+    return { payload: cachedPayload, sourceLabel: "místní záloha", fromCache: true };
   }
 
   throw new Error(failures.join(" | "));
@@ -113,7 +114,7 @@ async function loadDatasetWithFallback() {
 
 function assertValidPayload(payload, label) {
   if (!payload || !Array.isArray(payload.restaurants)) {
-    throw new Error(`${label} ma neplatny format`);
+    throw new Error(`${label} má neplatný formát`);
   }
 }
 
@@ -133,7 +134,7 @@ function readCachedPayload() {
     }
 
     const payload = JSON.parse(raw);
-    assertValidPayload(payload, "lokalni cache");
+    assertValidPayload(payload, "místní záloha");
     return payload;
   } catch {
     return null;
@@ -143,10 +144,10 @@ function readCachedPayload() {
 function formatSyncLabel(syncedAt, sourceLabel, fromCache) {
   const timeLabel = new Date(syncedAt).toLocaleString("cs-CZ");
   if (fromCache) {
-    return `${timeLabel} · lokalni nouzovka`;
+    return `${timeLabel} · místní záloha`;
   }
 
-  if (sourceLabel !== "live dataset") {
+  if (sourceLabel !== "aktuální snapshot") {
     return `${timeLabel} · ${sourceLabel}`;
   }
 
@@ -235,7 +236,7 @@ function hydrateTagFilter(restaurants) {
   const selects = [tagFilter, mapTagFilter];
 
   for (const select of selects) {
-    select.innerHTML = '<option value="">Všechny tagy</option>';
+    select.innerHTML = '<option value="">Všechny typy</option>';
 
     for (const tagName of sortedTags) {
       const option = document.createElement("option");
@@ -267,7 +268,7 @@ function runSearch() {
     .sort((left, right) => right.score - left.score || left.item.name.localeCompare(right.item.name, "cs"))
     .slice(0, 120);
 
-  resultMetaNode.textContent = `${filtered.length} vysledku`;
+  resultMetaNode.textContent = `${filtered.length} výsledků`;
   syncSelection();
   paintResults();
   refreshMapMarkers();
@@ -315,7 +316,7 @@ function paintResults() {
 
   if (!filtered.length) {
     resultsNode.innerHTML =
-      '<div class="empty-state">Nic jsem nenasel. Zkus presnejsi jmeno, mesto nebo vyhod tag filtr.</div>';
+      '<div class="empty-state">Nic jsem nenašel. Zkuste přesnější název, město nebo jiný filtr.</div>';
     return;
   }
 
@@ -327,7 +328,7 @@ function paintResults() {
     fragment.querySelector("h3").textContent = `${pickEmoji(item)} ${item.name}`;
     address.textContent = item.address;
     fragment.querySelector(".score-badge").textContent =
-      queryInput.value.trim() ? `score ${score}` : item.mainTag?.name || "tip";
+      item.mainTag?.name || (queryInput.value.trim() ? "Shoda" : "Výběr");
 
     if (item.id === selectedRestaurantId) {
       button.classList.add("is-active");
@@ -337,10 +338,13 @@ function paintResults() {
     if (item.images?.length) {
       address.insertAdjacentHTML(
         "afterend",
-        `<p class="result-meta">${item.images.length} fotek · ${escapeHtml(item.city || "nezname misto")}</p>`
+        `<p class="result-meta">${item.images.length} fotografií · ${escapeHtml(item.city || "Neznámé místo")}</p>`
       );
     } else {
-      address.insertAdjacentHTML("afterend", `<p class="result-meta">${escapeHtml(item.city || "nezname misto")}</p>`);
+      address.insertAdjacentHTML(
+        "afterend",
+        `<p class="result-meta">${escapeHtml(item.city || "Neznámé místo")}</p>`
+      );
     }
 
     const tagRow = fragment.querySelector(".tag-row");
@@ -389,7 +393,7 @@ function paintDetail(item) {
         </div>
         <div class="detail-meta">
           <span>${escapeHtml(item.mainTag?.name || "Podnik")}</span>
-          <span>${images.length ? `${images.length} fotek` : "Bez fotek"}</span>
+          <span>${images.length ? `${images.length} fotografií` : "Bez fotografií"}</span>
         </div>
       </div>
       <div class="tag-row">
@@ -398,19 +402,19 @@ function paintDetail(item) {
       <div class="detail-links">
         ${item.website ? `<a href="${escapeAttribute(item.website)}" target="_blank" rel="noreferrer">Web</a>` : ""}
         ${item.restaurantFacebookUrl ? `<a href="${escapeAttribute(item.restaurantFacebookUrl)}" target="_blank" rel="noreferrer">Facebook</a>` : ""}
-        ${item.facebookPostUrl ? `<a href="${escapeAttribute(item.facebookPostUrl)}" target="_blank" rel="noreferrer">Prispevek</a>` : ""}
+        ${item.facebookPostUrl ? `<a href="${escapeAttribute(item.facebookPostUrl)}" target="_blank" rel="noreferrer">Příspěvek</a>` : ""}
         ${item.phone ? `<a href="tel:${escapeAttribute(item.phone)}">${escapeHtml(item.phone)}</a>` : ""}
-        <a href="https://www.google.com/maps?q=${item.coordinates.latitude},${item.coordinates.longitude}" target="_blank" rel="noreferrer">Mapa</a>
+        <a href="https://www.google.com/maps?q=${item.coordinates.latitude},${item.coordinates.longitude}" target="_blank" rel="noreferrer">Google Mapy</a>
       </div>
       <div class="detail-description">
         ${renderDescription(item.description)}
       </div>
       <section class="detail-section">
-        <h3>Slug / ID</h3>
+        <h3>Identifikace místa</h3>
         <div class="hint">${escapeHtml(item.slug)} · ${item.id}</div>
       </section>
       <section class="detail-section">
-        <h3>Oteviracka</h3>
+        <h3>Otevírací doba</h3>
         ${renderOpeningHours(item.openingTimes)}
       </section>
     </div>
@@ -421,7 +425,7 @@ function paintDetail(item) {
 
 function renderGallery(item, activeImage) {
   if (!activeImage) {
-    return '<div class="detail-gallery detail-gallery-empty">Fotky tenhle snapshot nema. Skoda, no.</div>';
+    return '<div class="detail-gallery detail-gallery-empty">U tohoto podniku zatím ve snapshotu nejsou žádné fotografie.</div>';
   }
 
   return `
@@ -466,7 +470,7 @@ function wireGallery(item) {
 
 function renderDescription(description) {
   if (!description) {
-    return "<p>Bez popisu.</p>";
+    return "<p>Popis zatím chybí.</p>";
   }
 
   return description
@@ -479,7 +483,7 @@ function renderDescription(description) {
 
 function renderOpeningHours(openingTimes) {
   if (!openingTimes?.length) {
-    return '<p class="hint">Oteviracka v datasetu chybi.</p>';
+    return '<p class="hint">Otevírací doba v dostupných datech zatím chybí.</p>';
   }
 
   const rows = openingTimes
@@ -598,7 +602,7 @@ function focusUserLocation(forcePrompt) {
   }
 
   if (!navigator.geolocation) {
-    mapMetaNode.textContent = "Geolokace v tomhle prohlížeči není k dispozici.";
+    mapMetaNode.textContent = "Tento prohlížeč geolokaci nepodporuje.";
     return;
   }
 
@@ -619,7 +623,7 @@ function focusUserLocation(forcePrompt) {
     () => {
       locateUserBtn.disabled = false;
       locateUserBtn.textContent = "Moje poloha";
-      mapMetaNode.textContent = "Polohu se nepodařilo získat. Zůstávám na celé ČR.";
+      mapMetaNode.textContent = "Polohu se nepodařilo zjistit. Zůstávám u pohledu na celé Česko.";
     },
     {
       enableHighAccuracy: true,
@@ -646,7 +650,7 @@ function paintUserLocation() {
     fillColor: "#58d6ff",
     fillOpacity: 0.95
   })
-    .bindTooltip("Tvoje poloha", {
+    .bindTooltip("Vaše poloha", {
       direction: "top",
       offset: [0, -8]
     })
@@ -691,8 +695,8 @@ function applyUserCenteredMapView() {
 
   const nearestCount = selection.length;
   mapMetaNode.textContent = nearestCount
-    ? `${nearestCount} nejbližších pinů v okolí tvojí polohy`
-    : "Poloha nalezena, ale v okolí jsem nic nenašel.";
+    ? `Zobrazuji ${nearestCount} nejbližších podniků v okolí vaší polohy`
+    : "Polohu jsem našel, ale v blízkém okolí zatím nic není.";
 }
 
 function refreshMapMarkers() {
@@ -711,8 +715,8 @@ function refreshMapMarkers() {
 
   mapMetaNode.textContent =
     filtered.length && filtered.length !== dataset.length
-      ? `${filtered.length} zobrazených pinů podle aktuálního filtru`
-      : `${source.length} pinů napříč Českem`;
+      ? `Zobrazuji ${filtered.length} podniků podle aktuálního filtru`
+      : `Zobrazuji ${source.length} podniků napříč Českem`;
 
   fitMapToBounds(map, bounds);
 }
