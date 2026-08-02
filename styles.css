@@ -227,6 +227,12 @@ select {
   box-shadow: 0 12px 26px oklch(0.44 0.04 50 / 0.12);
 }
 
+.result-hit.is-active {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand) 28%, white);
+  background: color-mix(in oklab, var(--brand) 6%, white);
+}
+
 .result-top {
   display: flex;
   justify-content: space-between;
@@ -277,6 +283,83 @@ select {
   line-height: 1.65;
 }
 
+.detail-card {
+  display: grid;
+  gap: 18px;
+}
+
+.detail-gallery {
+  display: grid;
+  gap: 10px;
+}
+
+.detail-gallery-empty {
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 20px;
+  color: var(--muted);
+  background: color-mix(in oklab, white 72%, transparent);
+}
+
+.gallery-hero {
+  display: block;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, white 86%, transparent);
+}
+
+.gallery-hero img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.gallery-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+.gallery-thumb {
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: white;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.gallery-thumb img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.gallery-thumb.is-active {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand) 24%, white);
+}
+
+.detail-header {
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  align-items: start;
+}
+
+.detail-meta {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
 .detail-title {
   margin: 0 0 8px;
   font-size: 1.4rem;
@@ -296,6 +379,15 @@ select {
 
 .detail-links a {
   color: var(--brand-strong);
+}
+
+.detail-description {
+  display: grid;
+  gap: 12px;
+}
+
+.detail-description p {
+  margin: 0;
 }
 
 .detail-section {
@@ -368,5 +460,14 @@ select {
 
   .search-row {
     grid-template-columns: 1fr;
+  }
+
+  .detail-header {
+    flex-direction: column;
+  }
+
+  .detail-meta {
+    justify-items: start;
+    text-align: left;
   }
 }

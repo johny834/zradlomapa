@@ -7,20 +7,23 @@ const syncTimeNode = document.querySelector("#syncTime");
 const recordCountNode = document.querySelector("#recordCount");
 const resultMetaNode = document.querySelector("#resultMeta");
 const resultTemplate = document.querySelector("#resultTemplate");
+const galleryThumbTemplate = document.querySelector("#galleryThumbTemplate");
 
 const dayNames = [
   "",
   "Po",
-  "Út",
+  "Ut",
   "St",
-  "Čt",
-  "Pá",
+  "Ct",
+  "Pa",
   "So",
   "Ne"
 ];
 
 let dataset = [];
 let filtered = [];
+let selectedRestaurantId = null;
+let selectedImageIndex = 0;
 
 boot();
 
@@ -35,11 +38,12 @@ async function boot() {
 
     hydrateTagFilter(dataset);
     wireEvents();
+    restoreSelectionFromHash();
     runSearch();
   } catch (error) {
     syncTimeNode.textContent = "Chyba";
     resultsNode.innerHTML =
-      '<div class="empty-state">Nepodařilo se načíst dataset. Zkus refresh nebo znovu spusť synchronizaci.</div>';
+      '<div class="empty-state">Nepodarilo se nacist dataset. Zkus refresh nebo znovu spust synchronizaci.</div>';
     detailNode.textContent = error.message;
   }
 }
@@ -51,6 +55,13 @@ function wireEvents() {
     queryInput.value = "";
     tagFilter.value = "";
     runSearch();
+  });
+  window.addEventListener("hashchange", () => {
+    const previousId = selectedRestaurantId;
+    restoreSelectionFromHash();
+    if (selectedRestaurantId !== previousId) {
+      runSearch();
+    }
   });
 }
 
@@ -85,15 +96,31 @@ function runSearch() {
     .sort((left, right) => right.score - left.score || left.item.name.localeCompare(right.item.name, "cs"))
     .slice(0, 120);
 
-  resultMetaNode.textContent = `${filtered.length} výsledků`;
+  resultMetaNode.textContent = `${filtered.length} vysledku`;
+  syncSelection();
   paintResults();
 
   if (filtered[0]) {
-    paintDetail(filtered[0].item);
+    const current = filtered.find(({ item }) => item.id === selectedRestaurantId)?.item ?? filtered[0].item;
+    paintDetail(current);
   } else {
+    selectedRestaurantId = null;
     detailNode.className = "detail-empty";
-    detailNode.textContent = "Nic. Zkus kratší dotaz, jiné město nebo vyhoď tag filtr.";
+    detailNode.textContent = "Nic. Zkus kratsi dotaz, jine mesto nebo vyhod tag filtr.";
   }
+}
+
+function syncSelection() {
+  const visibleIds = new Set(filtered.map(({ item }) => item.id));
+
+  if (selectedRestaurantId && visibleIds.has(selectedRestaurantId)) {
+    return;
+  }
+
+  const next = filtered[0]?.item ?? null;
+  selectedRestaurantId = next?.id ?? null;
+  selectedImageIndex = 0;
+  updateHash(next);
 }
 
 function scoreItem(item, query) {
@@ -116,7 +143,7 @@ function paintResults() {
 
   if (!filtered.length) {
     resultsNode.innerHTML =
-      '<div class="empty-state">Nic jsem nenašel. Tady to není Google, zkus přesnější jméno nebo město.</div>';
+      '<div class="empty-state">Nic jsem nenasel. Tady to neni Google, zkus presnejsi jmeno nebo mesto.</div>';
     return;
   }
 
@@ -127,6 +154,11 @@ function paintResults() {
     fragment.querySelector(".result-address").textContent = item.address;
     fragment.querySelector(".score-badge").textContent = queryInput.value.trim() ? `score ${score}` : item.mainTag?.name || "tip";
 
+    if (item.id === selectedRestaurantId) {
+      button.classList.add("is-active");
+      button.setAttribute("aria-current", "true");
+    }
+
     const tagRow = fragment.querySelector(".tag-row");
     for (const tag of item.tags.slice(0, 4)) {
       const pill = document.createElement("span");
@@ -135,45 +167,138 @@ function paintResults() {
       tagRow.append(pill);
     }
 
-    button.addEventListener("click", () => paintDetail(item));
+    button.addEventListener("click", () => selectRestaurant(item.id));
     resultsNode.append(fragment);
   }
 }
 
+function selectRestaurant(restaurantId) {
+  const restaurant = dataset.find((item) => item.id === restaurantId);
+
+  if (!restaurant) {
+    return;
+  }
+
+  selectedRestaurantId = restaurant.id;
+  selectedImageIndex = 0;
+  updateHash(restaurant);
+  paintResults();
+  paintDetail(restaurant);
+}
+
 function paintDetail(item) {
+  const images = item.images || [];
+  const safeIndex = Math.min(selectedImageIndex, Math.max(images.length - 1, 0));
+  const activeImage = images[safeIndex];
+  selectedImageIndex = safeIndex;
+
   detailNode.className = "detail-card";
   detailNode.innerHTML = `
-    <h3 class="detail-title">${escapeHtml(item.name)}</h3>
-    <p class="detail-address">${escapeHtml(item.address)}</p>
-    <div class="tag-row">
-      ${item.tags.map((tag) => `<span class="tag-pill">${escapeHtml(tag.name)}</span>`).join("")}
+    ${renderGallery(item, activeImage)}
+    <div class="detail-copy">
+      <div class="detail-header">
+        <div>
+          <h3 class="detail-title">${escapeHtml(item.name)}</h3>
+          <p class="detail-address">${escapeHtml(item.address)}</p>
+        </div>
+        <div class="detail-meta">
+          <span>${escapeHtml(item.mainTag?.name || "Podnik")}</span>
+          <span>${images.length ? `${images.length} fotek` : "Bez fotek"}</span>
+        </div>
+      </div>
+      <div class="tag-row">
+        ${item.tags.map((tag) => `<span class="tag-pill">${escapeHtml(tag.name)}</span>`).join("")}
+      </div>
+      <div class="detail-links">
+        ${item.website ? `<a href="${escapeAttribute(item.website)}" target="_blank" rel="noreferrer">Web</a>` : ""}
+        ${item.restaurantFacebookUrl ? `<a href="${escapeAttribute(item.restaurantFacebookUrl)}" target="_blank" rel="noreferrer">Facebook</a>` : ""}
+        ${item.facebookPostUrl ? `<a href="${escapeAttribute(item.facebookPostUrl)}" target="_blank" rel="noreferrer">Prispevek</a>` : ""}
+        ${item.phone ? `<a href="tel:${escapeAttribute(item.phone)}">${escapeHtml(item.phone)}</a>` : ""}
+        <a href="https://www.google.com/maps?q=${item.coordinates.latitude},${item.coordinates.longitude}" target="_blank" rel="noreferrer">Mapa</a>
+      </div>
+      <div class="detail-description">
+        ${renderDescription(item.description)}
+      </div>
+      <section class="detail-section">
+        <h3>Slug / ID</h3>
+        <div class="hint">${escapeHtml(item.slug)} · ${item.id}</div>
+      </section>
+      <section class="detail-section">
+        <h3>Oteviracka</h3>
+        ${renderOpeningHours(item.openingTimes)}
+      </section>
     </div>
-    <div class="detail-links">
-      ${item.website ? `<a href="${item.website}" target="_blank" rel="noreferrer">Web</a>` : ""}
-      ${item.restaurantFacebookUrl ? `<a href="${item.restaurantFacebookUrl}" target="_blank" rel="noreferrer">Facebook</a>` : ""}
-      ${item.phone ? `<a href="tel:${item.phone}">${escapeHtml(item.phone)}</a>` : ""}
-      <a href="https://www.google.com/maps?q=${item.coordinates.latitude},${item.coordinates.longitude}" target="_blank" rel="noreferrer">Mapa</a>
-    </div>
-    <p>${escapeHtml(item.description || "Bez popisu.")}</p>
-    <section class="detail-section">
-      <h3>Slug / ID</h3>
-      <div class="hint">${escapeHtml(item.slug)} · ${item.id}</div>
-    </section>
-    <section class="detail-section">
-      <h3>Otvíračka</h3>
-      ${renderOpeningHours(item.openingTimes)}
-    </section>
   `;
+
+  wireGallery(item);
+}
+
+function renderGallery(item, activeImage) {
+  if (!activeImage) {
+    return '<div class="detail-gallery detail-gallery-empty">Fotky tenhle snapshot nema. Skoda, no.</div>';
+  }
+
+  return `
+    <div class="detail-gallery">
+      <a class="gallery-hero" href="${escapeAttribute(activeImage.original)}" target="_blank" rel="noreferrer">
+        <img src="${escapeAttribute(activeImage.thumb800 || activeImage.original)}" alt="Fotka podniku ${escapeAttribute(item.name)}" loading="eager" />
+      </a>
+      <div class="gallery-strip" id="galleryStrip"></div>
+    </div>
+  `;
+}
+
+function wireGallery(item) {
+  const images = item.images || [];
+  const strip = detailNode.querySelector("#galleryStrip");
+
+  if (!strip || !images.length) {
+    return;
+  }
+
+  images.slice(0, 8).forEach((image, index) => {
+    const fragment = galleryThumbTemplate.content.cloneNode(true);
+    const button = fragment.querySelector(".gallery-thumb");
+    const img = fragment.querySelector("img");
+
+    img.src = image.thumb800 || image.original;
+    img.alt = `${item.name} foto ${index + 1}`;
+
+    if (index === selectedImageIndex) {
+      button.classList.add("is-active");
+      button.setAttribute("aria-current", "true");
+    }
+
+    button.addEventListener("click", () => {
+      selectedImageIndex = index;
+      paintDetail(item);
+    });
+
+    strip.append(fragment);
+  });
+}
+
+function renderDescription(description) {
+  if (!description) {
+    return '<p>Bez popisu.</p>';
+  }
+
+  return description
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+    .join("");
 }
 
 function renderOpeningHours(openingTimes) {
   if (!openingTimes?.length) {
-    return '<p class="hint">Otvíračka v datasetu chybí.</p>';
+    return '<p class="hint">Oteviracka v datasetu chybi.</p>';
   }
 
   const rows = openingTimes
     .map((entry) => {
-      const slots = entry.times.map((slot) => `${slot.from}–${slot.to}`).join(", ");
+      const slots = entry.times.map((slot) => `${slot.from}-${slot.to}`).join(", ");
       return `<li>${dayNames[entry.day] || entry.day}: ${slots}</li>`;
     })
     .join("");
@@ -188,6 +313,9 @@ function enrichRestaurant(item) {
     ...item,
     address,
     city,
+    images: item.images || [],
+    tags: item.tags || [],
+    coordinates: item.coordinates || { latitude: 50.0755, longitude: 14.4378 },
     nameLc: item.name.toLowerCase(),
     addressLc: address.toLowerCase(),
     cityLc: city.toLowerCase(),
@@ -197,10 +325,34 @@ function enrichRestaurant(item) {
   };
 }
 
+function restoreSelectionFromHash() {
+  const token = decodeURIComponent(window.location.hash.replace(/^#/, "").trim());
+
+  if (!token) {
+    return;
+  }
+
+  const match = dataset.find((item) => item.slug === token || String(item.id) === token);
+  if (match) {
+    selectedRestaurantId = match.id;
+  }
+}
+
+function updateHash(item) {
+  const nextHash = item ? `#${encodeURIComponent(item.slug || item.id)}` : "";
+  if (window.location.hash !== nextHash) {
+    history.replaceState(null, "", nextHash || window.location.pathname + window.location.search);
+  }
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replaceAll("'", "&#39;");
 }
