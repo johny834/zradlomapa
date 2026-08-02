@@ -8,7 +8,6 @@ const locateUserBtn = document.querySelector("#locateUserBtn");
 const mapOverlayNode = document.querySelector("#mapOverlay");
 const mapMetaNode = document.querySelector("#mapMeta");
 const mapCanvasNode = document.querySelector("#mapCanvas");
-const miniMapCanvasNode = document.querySelector("#miniMapCanvas");
 const mapQueryInput = document.querySelector("#mapQuery");
 const mapTagFilter = document.querySelector("#mapTagFilter");
 const resultsNode = document.querySelector("#results");
@@ -26,12 +25,6 @@ const galleryThumbTemplate = document.querySelector("#galleryThumbTemplate");
 const dayNames = ["", "Po", "Ut", "St", "Ct", "Pa", "So", "Ne"];
 const defaultMapCenter = [49.8175, 15.473];
 const defaultMapZoom = 7;
-const czBounds = {
-  minLat: 48.45,
-  maxLat: 51.1,
-  minLon: 12.05,
-  maxLon: 18.95
-};
 const emojiByTagType = {
   brewery: "🍺",
   beer: "🍺",
@@ -204,7 +197,6 @@ function runSearch() {
   syncSelection();
   paintResults();
   refreshMapMarkers();
-  renderMiniMapSnapshot();
 
   if (selectedRestaurantId) {
     const current = filtered.find(({ item }) => item.id === selectedRestaurantId)?.item;
@@ -619,64 +611,6 @@ function applyUserCenteredMapView() {
   mapMetaNode.textContent = nearestCount
     ? `${nearestCount} nejbližších pinů v okolí tvojí polohy`
     : "Poloha nalezena, ale v okolí jsem nic nenašel.";
-}
-
-function renderMiniMapSnapshot() {
-  const source = filtered.length ? filtered.map(({ item }) => item) : dataset;
-  const points = source
-    .filter((item) => Number.isFinite(item.coordinates.latitude) && Number.isFinite(item.coordinates.longitude))
-    .map((item) => projectToSnapshot(item.coordinates.latitude, item.coordinates.longitude));
-
-  const width = 600;
-  const height = 360;
-  const circles = points
-    .slice(0, 220)
-    .map(
-      (point) =>
-        `<circle cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="4.2" fill="#ff8a3d" fill-opacity="0.9" stroke="#ffd7b8" stroke-width="1.2" />`
-    )
-    .join("");
-
-  const userCircle = userCoords
-    ? (() => {
-        const point = projectToSnapshot(userCoords.latitude, userCoords.longitude);
-        return `<circle cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="6.5" fill="#58d6ff" stroke="#ffffff" stroke-width="2" />`;
-      })()
-    : "";
-
-  miniMapCanvasNode.innerHTML = `
-    <svg class="mini-map-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Náhled mapy Česka s piny podniků">
-      <defs>
-        <linearGradient id="miniMapBg" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stop-color="#181b22" />
-          <stop offset="100%" stop-color="#0e1016" />
-        </linearGradient>
-        <linearGradient id="czFill" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stop-color="#232a39" />
-          <stop offset="100%" stop-color="#1a2030" />
-        </linearGradient>
-      </defs>
-      <rect width="${width}" height="${height}" fill="url(#miniMapBg)" />
-      <path d="M80 155 L104 114 L146 92 L186 76 L228 80 L266 60 L314 70 L352 64 L402 82 L454 94 L492 116 L522 146 L536 182 L526 214 L498 244 L460 266 L418 276 L372 294 L322 300 L282 290 L238 298 L198 286 L164 290 L132 274 L108 252 L90 224 L76 188 Z" fill="url(#czFill)" stroke="#465168" stroke-width="3" opacity="0.98" />
-      <path d="M118 132 L180 108 L248 114 L312 102 L380 112 L446 134 L492 170 L476 220 L424 246 L352 264 L280 266 L214 258 L156 242 L120 210 L108 174 Z" fill="none" stroke="#2a3142" stroke-width="1.5" opacity="0.8" />
-      <path d="M170 88 L210 144 L278 122 L338 150 L410 126 L468 166" fill="none" stroke="#5a667f" stroke-width="1.2" stroke-dasharray="4 6" opacity="0.55" />
-      ${circles}
-      ${userCircle}
-    </svg>
-  `;
-}
-
-function projectToSnapshot(latitude, longitude) {
-  const width = 600;
-  const height = 360;
-  const padding = 36;
-  const xRatio = (longitude - czBounds.minLon) / (czBounds.maxLon - czBounds.minLon);
-  const yRatio = 1 - (latitude - czBounds.minLat) / (czBounds.maxLat - czBounds.minLat);
-
-  return {
-    x: padding + xRatio * (width - padding * 2),
-    y: padding + yRatio * (height - padding * 2)
-  };
 }
 
 function refreshMapMarkers() {
