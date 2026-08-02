@@ -556,7 +556,7 @@ function openMap() {
   syncMapControlsFromMain();
   initMapIfNeeded();
   refreshMapMarkers();
-  window.setTimeout(() => map?.invalidateSize(), 50);
+  requestMapResize();
   focusUserLocation(false);
 }
 
@@ -581,6 +581,14 @@ function initMapIfNeeded() {
   }).addTo(map);
 
   mapLayerGroup = window.L.layerGroup().addTo(map);
+  window.addEventListener("resize", requestMapResize);
+}
+
+function requestMapResize() {
+  window.requestAnimationFrame(() => {
+    map?.invalidateSize();
+    window.setTimeout(() => map?.invalidateSize(), 180);
+  });
 }
 
 function focusUserLocation(forcePrompt) {
