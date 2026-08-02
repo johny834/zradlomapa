@@ -32,6 +32,25 @@ const czBounds = {
   minLon: 12.05,
   maxLon: 18.95
 };
+const emojiByTagType = {
+  brewery: "🍺",
+  beer: "🍺",
+  pub: "🍺",
+  coffee: "☕",
+  cafe: "☕",
+  bakery: "🥐",
+  bistro: "🍽️",
+  restaurant: "🍴",
+  bar: "🍸",
+  wine: "🍷",
+  pizza: "🍕",
+  burger: "🍔",
+  pastry: "🧁",
+  dessert: "🍰",
+  accommodation: "🛏️",
+  shop: "🛍️",
+  store: "🛍️"
+};
 
 let dataset = [];
 let filtered = [];
@@ -686,12 +705,13 @@ function paintMarkers(layerGroup, source, options = {}) {
       continue;
     }
 
-    const marker = window.L.circleMarker([latitude, longitude], {
-      radius: options.radius || 5,
-      weight: 1,
-      color: "#ffd7b8",
-      fillColor: "#ff8a3d",
-      fillOpacity: 0.88
+    const marker = window.L.marker([latitude, longitude], {
+      icon: window.L.divIcon({
+        className: "emoji-map-marker",
+        html: `<span>${pickEmoji(item)}</span>`,
+        iconSize: options.iconSize || [24, 24],
+        iconAnchor: options.iconAnchor || [12, 12]
+      })
     });
 
     if (options.clickable !== false) {
@@ -711,6 +731,22 @@ function paintMarkers(layerGroup, source, options = {}) {
   }
 
   return bounds;
+}
+
+function pickEmoji(item) {
+  const tagTypes = item.tags.map((tag) => String(tag.type || "").toLowerCase());
+
+  for (const tagType of tagTypes) {
+    if (emojiByTagType[tagType]) {
+      return emojiByTagType[tagType];
+    }
+  }
+
+  if (item.accommodation) {
+    return "🛏️";
+  }
+
+  return "📍";
 }
 
 function fitMapToBounds(instance, bounds, maxZoom = 13) {

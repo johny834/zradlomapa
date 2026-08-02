@@ -569,6 +569,24 @@ a {
   font: inherit;
 }
 
+.emoji-map-marker {
+  display: grid;
+  place-items: center;
+}
+
+.emoji-map-marker span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(18, 20, 27, 0.88);
+  border: 1px solid rgba(255, 215, 184, 0.45);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+  font-size: 14px;
+  line-height: 1;
+}
+
 .detail-empty,
 .detail-card {
   min-height: 0;
