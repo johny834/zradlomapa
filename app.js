@@ -651,9 +651,15 @@ function renderMiniMapSnapshot() {
           <stop offset="0%" stop-color="#181b22" />
           <stop offset="100%" stop-color="#0e1016" />
         </linearGradient>
+        <linearGradient id="czFill" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="#232a39" />
+          <stop offset="100%" stop-color="#1a2030" />
+        </linearGradient>
       </defs>
       <rect width="${width}" height="${height}" fill="url(#miniMapBg)" />
-      <path d="M78 92 L144 54 L234 70 L286 44 L380 72 L470 98 L526 162 L500 254 L428 298 L318 316 L226 284 L156 300 L98 240 L70 160 Z" fill="#202633" stroke="#3b4356" stroke-width="3" opacity="0.95" />
+      <path d="M80 155 L104 114 L146 92 L186 76 L228 80 L266 60 L314 70 L352 64 L402 82 L454 94 L492 116 L522 146 L536 182 L526 214 L498 244 L460 266 L418 276 L372 294 L322 300 L282 290 L238 298 L198 286 L164 290 L132 274 L108 252 L90 224 L76 188 Z" fill="url(#czFill)" stroke="#465168" stroke-width="3" opacity="0.98" />
+      <path d="M118 132 L180 108 L248 114 L312 102 L380 112 L446 134 L492 170 L476 220 L424 246 L352 264 L280 266 L214 258 L156 242 L120 210 L108 174 Z" fill="none" stroke="#2a3142" stroke-width="1.5" opacity="0.8" />
+      <path d="M170 88 L210 144 L278 122 L338 150 L410 126 L468 166" fill="none" stroke="#5a667f" stroke-width="1.2" stroke-dasharray="4 6" opacity="0.55" />
       ${circles}
       ${userCircle}
     </svg>
