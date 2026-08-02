@@ -1,7 +1,6 @@
 :root {
   color-scheme: dark;
   --bg: oklch(0.16 0.02 270);
-  --bg-soft: oklch(0.2 0.03 260);
   --panel: oklch(0.23 0.02 265 / 0.82);
   --panel-strong: oklch(0.27 0.025 262 / 0.95);
   --panel-solid: oklch(0.21 0.025 264);
@@ -44,7 +43,8 @@ body {
   padding: 20px;
 }
 
-body.detail-open {
+body.detail-open,
+body.map-open {
   overflow: hidden;
 }
 
@@ -76,7 +76,8 @@ a {
 
 .hero-copy,
 .hero-stats,
-.panel {
+.panel,
+.map-shell {
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   background: var(--panel);
@@ -117,7 +118,8 @@ a {
 }
 
 .hero-topline,
-.results-head {
+.results-head,
+.map-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -182,6 +184,12 @@ a {
   color: color-mix(in oklab, var(--muted) 82%, white);
 }
 
+.hero-actions {
+  position: relative;
+  z-index: 1;
+  margin-top: 22px;
+}
+
 .hero-stats {
   padding: 18px;
   display: grid;
@@ -230,7 +238,8 @@ a {
 }
 
 .search-label,
-.results-head h2 {
+.results-head h2,
+.map-head h2 {
   margin: 0;
   font-size: 1rem;
 }
@@ -250,6 +259,7 @@ a {
 #query,
 #tagFilter,
 #clearBtn,
+.ghost-btn,
 .result-hit,
 .gallery-thumb,
 .detail-close-btn {
@@ -275,23 +285,34 @@ a {
 #tagFilter:focus,
 .result-hit:focus-visible,
 #clearBtn:focus-visible,
+.ghost-btn:focus-visible,
 .gallery-thumb:focus-visible,
 .detail-close-btn:focus-visible {
   outline: 3px solid color-mix(in oklab, var(--brand) 55%, transparent);
   outline-offset: 2px;
 }
 
-#clearBtn {
+#clearBtn,
+.ghost-btn {
   min-height: 54px;
   padding: 0 20px;
-  color: white;
-  background: linear-gradient(180deg, color-mix(in oklab, var(--brand) 90%, white), var(--brand-strong));
-  box-shadow: 0 14px 28px oklch(0.05 0 0 / 0.25);
   cursor: pointer;
   transition: transform 180ms ease, filter 180ms ease;
 }
 
-#clearBtn:hover {
+#clearBtn {
+  color: white;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--brand) 90%, white), var(--brand-strong));
+  box-shadow: 0 14px 28px oklch(0.05 0 0 / 0.25);
+}
+
+.ghost-btn {
+  color: var(--text);
+  background: oklch(0.22 0.02 260 / 0.9);
+}
+
+#clearBtn:hover,
+.ghost-btn:hover {
   transform: translateY(-1px);
   filter: brightness(1.05);
 }
@@ -403,10 +424,20 @@ a {
   color: color-mix(in oklab, var(--text) 90%, var(--teal));
 }
 
-.detail-overlay {
+.detail-overlay,
+.map-overlay {
   position: fixed;
   inset: 0;
   z-index: 40;
+  background: oklch(0.02 0 0 / 0.62);
+  backdrop-filter: blur(10px);
+}
+
+.map-overlay {
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 18px;
 }
 
 .detail-backdrop {
@@ -414,17 +445,22 @@ a {
   inset: 0;
   border: 0;
   padding: 0;
-  background: oklch(0.02 0 0 / 0.62);
-  backdrop-filter: blur(10px);
+  background: transparent;
   cursor: pointer;
+}
+
+.detail-drawer,
+.map-shell {
+  box-shadow: var(--shadow-strong);
 }
 
 .detail-drawer {
   position: absolute;
-  top: 18px;
-  right: 18px;
-  bottom: 18px;
-  width: min(680px, calc(100vw - 36px));
+  top: 50%;
+  left: 50%;
+  width: min(860px, calc(100vw - 40px));
+  max-height: min(88vh, 980px);
+  transform: translate(-50%, -50%);
   display: grid;
   grid-template-rows: auto 1fr;
   gap: 16px;
@@ -433,18 +469,30 @@ a {
   border-radius: 32px;
   background:
     linear-gradient(180deg, oklch(0.24 0.025 260 / 0.98), oklch(0.16 0.02 260 / 0.98));
-  box-shadow: var(--shadow-strong);
   overflow: hidden;
 }
 
-.detail-drawer-head {
+.map-shell {
+  width: min(1240px, calc(100vw - 36px));
+  height: min(88vh, 920px);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 16px;
+  padding: 18px;
+  background:
+    linear-gradient(180deg, oklch(0.24 0.025 260 / 0.98), oklch(0.16 0.02 260 / 0.98));
+}
+
+.detail-drawer-head,
+.map-head {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   align-items: start;
 }
 
-.detail-drawer-head h2 {
+.detail-drawer-head h2,
+.map-head h2 {
   margin: 8px 0 0;
   font-size: 1.15rem;
 }
@@ -456,6 +504,20 @@ a {
   color: var(--text);
   background: oklch(0.28 0.02 260 / 0.92);
   cursor: pointer;
+}
+
+.map-canvas {
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+}
+
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #101218;
+  font: inherit;
 }
 
 .detail-empty,
@@ -676,7 +738,8 @@ a {
 
   .hero-topline,
   .results-head,
-  .detail-header {
+  .detail-header,
+  .map-head {
     flex-direction: column;
     align-items: start;
   }
@@ -694,19 +757,28 @@ a {
     grid-template-columns: 1fr;
   }
 
-  #clearBtn {
+  #clearBtn,
+  .ghost-btn {
     width: 100%;
   }
 
-  .detail-drawer {
+  .detail-drawer,
+  .map-shell {
     top: auto;
     right: 0;
     left: 0;
     bottom: 0;
     width: 100%;
+    height: auto;
     max-height: 88vh;
     border-radius: 28px 28px 0 0;
+    transform: none;
     padding: 16px;
+  }
+
+  .map-overlay {
+    padding: 0;
+    align-items: end;
   }
 
   .detail-meta {
