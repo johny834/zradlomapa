@@ -25,6 +25,11 @@ const galleryThumbTemplate = document.querySelector("#galleryThumbTemplate");
 const dayNames = ["", "Po", "Ut", "St", "Ct", "Pa", "So", "Ne"];
 const defaultMapCenter = [49.8175, 15.473];
 const defaultMapZoom = 7;
+const DATASET_SOURCES = [
+  { url: "./data/restaurants.json", label: "live dataset" },
+  { url: "./data/restaurants-backup.json", label: "github zaloha" }
+];
+const DATASET_CACHE_KEY = "zradlomapa:last-good-snapshot";
 const emojiByTagType = {
   brewery: "🍺",
   beer: "🍺",
@@ -59,11 +64,10 @@ boot();
 
 async function boot() {
   try {
-    const response = await fetch("./data/restaurants.json", { cache: "no-store" });
-    const payload = await response.json();
+    const { payload, sourceLabel, fromCache } = await loadDatasetWithFallback();
     dataset = payload.restaurants.map(enrichRestaurant);
 
-    syncTimeNode.textContent = new Date(payload.syncedAt).toLocaleString("cs-CZ");
+    syncTimeNode.textContent = formatSyncLabel(payload.syncedAt, sourceLabel, fromCache);
     recordCountNode.textContent = payload.total.toLocaleString("cs-CZ");
 
     hydrateTagFilter(dataset);
@@ -77,6 +81,76 @@ async function boot() {
       '<div class="empty-state">Nepodarilo se nacist dataset. Zkus refresh nebo znovu spust synchronizaci.</div>';
     detailNode.textContent = error.message;
   }
+}
+
+async function loadDatasetWithFallback() {
+  const failures = [];
+
+  for (const source of DATASET_SOURCES) {
+    try {
+      const response = await fetch(source.url, { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const payload = await response.json();
+      assertValidPayload(payload, source.label);
+      rememberPayload(payload);
+      return { payload, sourceLabel: source.label, fromCache: false };
+    } catch (error) {
+      failures.push(`${source.label}: ${error.message}`);
+    }
+  }
+
+  const cachedPayload = readCachedPayload();
+  if (cachedPayload) {
+    return { payload: cachedPayload, sourceLabel: "lokalni cache", fromCache: true };
+  }
+
+  throw new Error(failures.join(" | "));
+}
+
+function assertValidPayload(payload, label) {
+  if (!payload || !Array.isArray(payload.restaurants)) {
+    throw new Error(`${label} ma neplatny format`);
+  }
+}
+
+function rememberPayload(payload) {
+  try {
+    window.localStorage.setItem(DATASET_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore storage failures; remote backup is still the primary safeguard.
+  }
+}
+
+function readCachedPayload() {
+  try {
+    const raw = window.localStorage.getItem(DATASET_CACHE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const payload = JSON.parse(raw);
+    assertValidPayload(payload, "lokalni cache");
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function formatSyncLabel(syncedAt, sourceLabel, fromCache) {
+  const timeLabel = new Date(syncedAt).toLocaleString("cs-CZ");
+  if (fromCache) {
+    return `${timeLabel} · lokalni nouzovka`;
+  }
+
+  if (sourceLabel !== "live dataset") {
+    return `${timeLabel} · ${sourceLabel}`;
+  }
+
+  return timeLabel;
 }
 
 function wireEvents() {

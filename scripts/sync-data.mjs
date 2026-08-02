@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, writeFile } from "node:fs/promises";
 
 const API_BASE = "https://api.hejlik.cz/api/v1/restaurants";
 const PAGE_SIZE = 100;
@@ -38,14 +38,40 @@ async function main() {
     restaurants
   };
 
-  await mkdir(new URL("../data/", import.meta.url), { recursive: true });
-  await writeFile(
-    new URL("../data/restaurants.json", import.meta.url),
-    JSON.stringify(snapshot, null, 2) + "\n",
-    "utf8"
-  );
+  const dataDir = new URL("../data/", import.meta.url);
+  const primaryPath = new URL("../data/restaurants.json", import.meta.url);
+  const backupPath = new URL("../data/restaurants-backup.json", import.meta.url);
+
+  await mkdir(dataDir, { recursive: true });
+  await syncBackupSnapshot(primaryPath, backupPath);
+  await writeFile(primaryPath, JSON.stringify(snapshot, null, 2) + "\n", "utf8");
+  await ensureBackupExists(primaryPath, backupPath);
 
   console.log(`\nSaved ${restaurants.length} restaurants to data/restaurants.json`);
+}
+
+async function syncBackupSnapshot(primaryPath, backupPath) {
+  try {
+    await copyFile(primaryPath, backupPath);
+    console.log("Updated data/restaurants-backup.json from the last good snapshot");
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
+}
+
+async function ensureBackupExists(primaryPath, backupPath) {
+  try {
+    await access(backupPath);
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+
+    await copyFile(primaryPath, backupPath);
+    console.log("Created initial data/restaurants-backup.json backup");
+  }
 }
 
 main().catch((error) => {
