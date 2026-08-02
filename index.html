@@ -51,6 +51,13 @@
             <span class="stat-label">Počet podniků</span>
             <strong id="recordCount">–</strong>
           </div>
+          <button id="openMapPreviewBtn" class="map-preview-card" type="button">
+            <div class="map-preview-copy">
+              <span class="stat-label">Mapa Česka</span>
+              <strong>Otevřít piny na mapě</strong>
+            </div>
+            <div id="miniMapCanvas" class="mini-map-canvas" aria-hidden="true"></div>
+          </button>
         </div>
       </header>
 
@@ -116,6 +123,17 @@
             <p id="mapMeta" class="panel-subtle">Načítám piny…</p>
           </div>
           <button id="closeMapBtn" class="detail-close-btn" type="button" aria-label="Zavřít mapu">×</button>
+        </div>
+        <div class="map-filters">
+          <input
+            id="mapQuery"
+            type="search"
+            placeholder="Filtrovat mapu podle názvu, města nebo tagu…"
+            autocomplete="off"
+          />
+          <select id="mapTagFilter">
+            <option value="">Všechny tagy</option>
+          </select>
         </div>
         <div id="mapCanvas" class="map-canvas" aria-label="Mapa podniků"></div>
       </div>
