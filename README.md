@@ -2,6 +2,8 @@
 
 Jednoduchá statická web appka nad synchronizovaným datasetem podniků.
 
+** Vytvořeno pouze pro edukativní účely **
+
 ## Jak to funguje
 
 - `scripts/sync-data.mjs` stáhne všechny podniky z `https://api.hejlik.cz/api/v1/restaurants`
