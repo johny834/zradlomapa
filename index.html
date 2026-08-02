@@ -20,11 +20,17 @@
     <div class="page-shell">
       <header class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Unofficial mirror</p>
+          <div class="hero-topline">
+            <p class="eyebrow">Unofficial mirror</p>
+            <span class="hero-badge">Live snapshot</span>
+          </div>
           <h1>Gastromapa pořád žije. Jen ji někdo schoval za appku.</h1>
           <p class="lede">
             Tahle jednoduchá web appka prohledává synchronizovaný dataset z
             veřejně dostupného API. Bez loginu, bez app store cirkusu.
+          </p>
+          <p class="hero-note">
+            Rychlý webový fallback pro chvíle, kdy tě originál tlačí jen do mobilní appky.
           </p>
         </div>
         <div class="hero-stats">
@@ -41,7 +47,10 @@
 
       <main class="layout">
         <section class="panel search-panel">
-          <label class="search-label" for="query">Hledej podnik, město nebo tag</label>
+          <div class="panel-head">
+            <label class="search-label" for="query">Hledej podnik, město nebo tag</label>
+            <p class="panel-subtle">Fulltext nad lokálním snapshotem, bez čekání na cizí backend.</p>
+          </div>
           <div class="search-row">
             <input
               id="query"
