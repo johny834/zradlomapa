@@ -65,37 +65,14 @@
               <span class="stat-label">Mapa míst</span>
               <strong>Otevřít piny na mapě</strong>
             </div>
-            <div class="mini-map-canvas" aria-hidden="true">
-              <svg class="mini-map-svg" viewBox="0 0 600 360" role="img" aria-label="Stylizovaná mapa Česka s gastro body">
-                <defs>
-                  <linearGradient id="miniMapBg" x1="0" x2="1" y1="0" y2="1">
-                    <stop offset="0%" stop-color="#181b22" />
-                    <stop offset="100%" stop-color="#0e1016" />
-                  </linearGradient>
-                  <linearGradient id="czFill" x1="0" x2="1" y1="0" y2="1">
-                    <stop offset="0%" stop-color="#232a39" />
-                    <stop offset="100%" stop-color="#1a2030" />
-                  </linearGradient>
-                </defs>
-                <rect width="600" height="360" fill="url(#miniMapBg)" />
-                <path d="M80 155 L104 114 L146 92 L186 76 L228 80 L266 60 L314 70 L352 64 L402 82 L454 94 L492 116 L522 146 L536 182 L526 214 L498 244 L460 266 L418 276 L372 294 L322 300 L282 290 L238 298 L198 286 L164 290 L132 274 L108 252 L90 224 L76 188 Z" fill="url(#czFill)" stroke="#465168" stroke-width="3" opacity="0.98" />
-                <path d="M118 132 L180 108 L248 114 L312 102 L380 112 L446 134 L492 170 L476 220 L424 246 L352 264 L280 266 L214 258 L156 242 L120 210 L108 174 Z" fill="none" stroke="#2a3142" stroke-width="1.5" opacity="0.8" />
-              </svg>
-              <span class="mini-map-emoji" style="left: 20%; top: 34%;">☕</span>
-              <span class="mini-map-emoji" style="left: 27%; top: 46%;">🍺</span>
-              <span class="mini-map-emoji" style="left: 34%; top: 41%;">🍽️</span>
-              <span class="mini-map-emoji" style="left: 41%; top: 29%;">🍷</span>
-              <span class="mini-map-emoji" style="left: 46%; top: 50%;">🍔</span>
-              <span class="mini-map-emoji" style="left: 53%; top: 38%;">🍕</span>
-              <span class="mini-map-emoji" style="left: 58%; top: 56%;">🥐</span>
-              <span class="mini-map-emoji" style="left: 64%; top: 44%;">🍺</span>
-              <span class="mini-map-emoji" style="left: 70%; top: 32%;">🍸</span>
-              <span class="mini-map-emoji" style="left: 75%; top: 49%;">🍴</span>
-              <span class="mini-map-emoji" style="left: 61%; top: 23%;">☕</span>
-              <span class="mini-map-emoji" style="left: 49%; top: 19%;">🧁</span>
-              <span class="mini-map-emoji" style="left: 37%; top: 60%;">🍽️</span>
-              <span class="mini-map-emoji" style="left: 24%; top: 58%;">🍺</span>
-              <span class="mini-map-emoji" style="left: 68%; top: 63%;">🍷</span>
+            <div class="mini-map-canvas">
+              <img
+                class="mini-map-image"
+                src="./assets/cz-map-preview.jpg"
+                alt="Náhled mapy Česka s gastro body"
+                loading="eager"
+                decoding="async"
+              />
             </div>
           </button>
         </div>
