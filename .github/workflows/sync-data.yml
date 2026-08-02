@@ -1,5 +1,6 @@
 name: Sync Gastromapa data
 
+
 on:
   workflow_dispatch:
   schedule:
