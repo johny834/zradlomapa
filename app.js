@@ -376,7 +376,8 @@ function selectRestaurant(restaurantId) {
 }
 
 function paintDetail(item) {
-  const images = item.images || [];
+  const images = getGalleryImages(item);
+  const remoteImageCount = item.images?.length || 0;
   const safeIndex = Math.min(selectedImageIndex, Math.max(images.length - 1, 0));
   const activeImage = images[safeIndex];
   selectedImageIndex = safeIndex;
@@ -393,7 +394,7 @@ function paintDetail(item) {
         </div>
         <div class="detail-meta">
           <span>${escapeHtml(item.mainTag?.name || "Podnik")}</span>
-          <span>${images.length ? `${images.length} fotografií` : "Bez fotografií"}</span>
+          <span>${remoteImageCount ? `${remoteImageCount} fotografií` : images.length ? "1 záložní fotka" : "Bez fotografií"}</span>
         </div>
       </div>
       <div class="tag-row">
@@ -430,8 +431,8 @@ function renderGallery(item, activeImage) {
 
   return `
     <div class="detail-gallery">
-      <a class="gallery-hero" href="${escapeAttribute(activeImage.original)}" target="_blank" rel="noreferrer">
-        <img src="${escapeAttribute(activeImage.thumb800 || activeImage.original)}" alt="Fotka podniku ${escapeAttribute(item.name)}" loading="eager" />
+      <a class="gallery-hero" href="${escapeAttribute(getImageOriginalSrc(activeImage))}" target="_blank" rel="noreferrer">
+        <img src="${escapeAttribute(getImageThumbSrc(activeImage))}" alt="Fotka podniku ${escapeAttribute(item.name)}" loading="eager" />
       </a>
       <div class="gallery-strip" id="galleryStrip"></div>
     </div>
@@ -439,11 +440,36 @@ function renderGallery(item, activeImage) {
 }
 
 function wireGallery(item) {
-  const images = item.images || [];
+  const images = getGalleryImages(item);
   const strip = detailNode.querySelector("#galleryStrip");
+  const heroLink = detailNode.querySelector(".gallery-hero");
+  const heroImage = heroLink?.querySelector("img");
 
   if (!strip || !images.length) {
     return;
+  }
+
+  if (heroImage && heroLink) {
+    heroImage.addEventListener(
+      "error",
+      () => {
+        if (selectedImageIndex !== 0 && item.localHero) {
+          selectedImageIndex = 0;
+          paintDetail(item);
+          return;
+        }
+
+        const fallback = images.findIndex((image, index) => index !== selectedImageIndex && getImageThumbSrc(image));
+        if (fallback > -1 && fallback !== selectedImageIndex) {
+          selectedImageIndex = fallback;
+          paintDetail(item);
+          return;
+        }
+
+        detailNode.querySelector(".detail-gallery")?.classList.add("detail-gallery-empty");
+      },
+      { once: true }
+    );
   }
 
   images.slice(0, 8).forEach((image, index) => {
@@ -451,8 +477,11 @@ function wireGallery(item) {
     const button = fragment.querySelector(".gallery-thumb");
     const img = fragment.querySelector("img");
 
-    img.src = image.thumb800 || image.original;
+    img.src = getImageThumbSrc(image);
     img.alt = `${item.name} foto ${index + 1}`;
+    img.addEventListener("error", () => {
+      button.remove();
+    });
 
     if (index === selectedImageIndex) {
       button.classList.add("is-active");
@@ -513,6 +542,24 @@ function enrichRestaurant(item) {
     slugLc: (item.slug || "").toLowerCase(),
     tagsLc: (item.tags || []).map((tag) => tag.name.toLowerCase())
   };
+}
+
+function getGalleryImages(item) {
+  const images = item.images || [];
+
+  if (!item.localHero) {
+    return images;
+  }
+
+  return [{ thumb800: item.localHero, original: item.localHero, isLocalHero: true }, ...images];
+}
+
+function getImageThumbSrc(image) {
+  return image.thumb800 || image.original || "";
+}
+
+function getImageOriginalSrc(image) {
+  return image.original || image.thumb800 || "";
 }
 
 function restoreSelectionFromHash() {
