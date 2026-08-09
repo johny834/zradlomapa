@@ -49,12 +49,18 @@
   --detail-link-text: oklch(0.42 0.1 42);
   --theme-toggle-bg: oklch(0.995 0.004 90 / 0.96);
   --theme-toggle-text: var(--text);
-  --badge-text: oklch(0.4 0.1 42);
+  --badge-text: oklch(0.33 0.11 42);
+  --badge-bg: color-mix(in oklab, var(--brand) 24%, white);
+  --badge-border: color-mix(in oklab, var(--brand) 52%, transparent);
   --subtle-text: oklch(0.43 0.02 45);
   --note-text: oklch(0.36 0.02 42);
   --placeholder-text: oklch(0.58 0.02 50);
   --result-address-text: oklch(0.38 0.02 42);
-  --score-text: oklch(0.4 0.1 42);
+  --score-text: oklch(0.32 0.11 42);
+  --score-bg: color-mix(in oklab, var(--brand) 22%, white);
+  --tag-bg: color-mix(in oklab, var(--teal) 18%, white);
+  --tag-border: color-mix(in oklab, var(--teal) 36%, var(--line));
+  --tag-text: oklch(0.3 0.06 215);
   --preview-hover-border: rgba(218, 147, 89, 0.44);
   --preview-hover-shadow: 0 18px 42px rgba(121, 92, 61, 0.18);
   --preview-focus: rgba(218, 147, 89, 0.7);
@@ -114,11 +120,17 @@
   --theme-toggle-bg: oklch(0.22 0.02 260 / 0.94);
   --theme-toggle-text: var(--text);
   --badge-text: oklch(0.92 0.04 70);
+  --badge-bg: color-mix(in oklab, var(--brand) 18%, transparent);
+  --badge-border: color-mix(in oklab, var(--brand) 50%, transparent);
   --subtle-text: var(--muted);
   --note-text: color-mix(in oklab, var(--muted) 82%, white);
   --placeholder-text: color-mix(in oklab, var(--muted) 78%, white);
   --result-address-text: color-mix(in oklab, var(--muted) 88%, white);
   --score-text: oklch(0.93 0.04 70);
+  --score-bg: color-mix(in oklab, var(--brand) 18%, transparent);
+  --tag-bg: color-mix(in oklab, var(--teal) 16%, transparent);
+  --tag-border: color-mix(in oklab, var(--teal) 24%, var(--line));
+  --tag-text: color-mix(in oklab, var(--text) 90%, var(--teal));
   --preview-hover-border: rgba(255, 214, 177, 0.36);
   --preview-hover-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
   --preview-focus: rgba(255, 214, 177, 0.75);
@@ -292,8 +304,8 @@ a {
   font-family: var(--font-mono);
   padding: 0.45rem 0.75rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in oklab, var(--brand) 50%, transparent);
-  background: color-mix(in oklab, var(--brand) 18%, transparent);
+  border: 1px solid var(--badge-border);
+  background: var(--badge-bg);
   color: var(--badge-text);
 }
 
@@ -741,7 +753,7 @@ a {
 }
 
 .score-badge {
-  background: color-mix(in oklab, var(--brand) 18%, transparent);
+  background: var(--score-bg);
   color: var(--score-text);
 }
 
@@ -752,9 +764,9 @@ a {
 }
 
 .tag-pill {
-  background: color-mix(in oklab, var(--teal) 16%, transparent);
-  border: 1px solid color-mix(in oklab, var(--teal) 24%, var(--line));
-  color: color-mix(in oklab, var(--text) 90%, var(--teal));
+  background: var(--tag-bg);
+  border: 1px solid var(--tag-border);
+  color: var(--tag-text);
 }
 
 .detail-overlay,
