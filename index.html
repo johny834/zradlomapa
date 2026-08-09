@@ -42,17 +42,16 @@
   </head>
   <body>
     <div class="page-shell">
-      <div class="page-tools">
-        <button id="themeToggleBtn" class="theme-toggle-btn" type="button" aria-label="Přepnout vzhled">
-          <span class="theme-toggle-kicker">Vzhled</span>
-          <strong id="themeToggleLabel">Light</strong>
-        </button>
-      </div>
       <header class="hero">
         <div class="hero-copy">
           <div class="hero-topline">
             <p class="eyebrow">Neoficiální přehled</p>
-            <span class="hero-badge">Aktuální snapshot</span>
+            <div class="hero-topline-actions">
+              <span class="hero-badge">Aktuální snapshot</span>
+              <button id="themeToggleBtn" class="theme-toggle-btn" type="button" aria-label="Přepnout vzhled">
+                <span id="themeToggleIcon" aria-hidden="true">☀</span>
+              </button>
+            </div>
           </div>
           <h1>Žrádlomapa. Protože hlad je zlo.</h1>
           <p class="lede">

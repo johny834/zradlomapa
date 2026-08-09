@@ -3,7 +3,7 @@ const tagFilter = document.querySelector("#tagFilter");
 const clearBtn = document.querySelector("#clearBtn");
 const quickFilterChips = [...document.querySelectorAll(".quick-filter-chip")];
 const themeToggleBtn = document.querySelector("#themeToggleBtn");
-const themeToggleLabel = document.querySelector("#themeToggleLabel");
+const themeToggleIcon = document.querySelector("#themeToggleIcon");
 const openMapBtn = document.querySelector("#openMapBtn");
 const openMapPreviewBtn = document.querySelector("#openMapPreviewBtn");
 const closeMapBtn = document.querySelector("#closeMapBtn");
@@ -268,8 +268,8 @@ function applyTheme(theme) {
     // Ignore storage failures; the UI can still switch for the current session.
   }
 
-  if (themeToggleLabel) {
-    themeToggleLabel.textContent = theme === "light" ? "Light" : "Dark";
+  if (themeToggleIcon) {
+    themeToggleIcon.textContent = theme === "light" ? "☀" : "☾";
   }
 
   if (themeToggleBtn) {
