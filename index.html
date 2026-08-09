@@ -13,10 +13,19 @@
     <link rel="icon" type="image/png" sizes="192x192" href="./favicon-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
     <link rel="manifest" href="./site.webmanifest" />
-    <meta name="theme-color" content="#11141b" />
+    <meta name="theme-color" content="#f5f1eb" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Žrádlomapa" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <script>
+      (() => {
+        let theme = "light";
+        try {
+          theme = localStorage.getItem("zradlomapa:theme") || "light";
+        } catch {}
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -33,6 +42,12 @@
   </head>
   <body>
     <div class="page-shell">
+      <div class="page-tools">
+        <button id="themeToggleBtn" class="theme-toggle-btn" type="button" aria-label="Přepnout vzhled">
+          <span class="theme-toggle-kicker">Vzhled</span>
+          <strong id="themeToggleLabel">Light</strong>
+        </button>
+      </div>
       <header class="hero">
         <div class="hero-copy">
           <div class="hero-topline">

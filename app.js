@@ -2,6 +2,8 @@ const queryInput = document.querySelector("#query");
 const tagFilter = document.querySelector("#tagFilter");
 const clearBtn = document.querySelector("#clearBtn");
 const quickFilterChips = [...document.querySelectorAll(".quick-filter-chip")];
+const themeToggleBtn = document.querySelector("#themeToggleBtn");
+const themeToggleLabel = document.querySelector("#themeToggleLabel");
 const openMapBtn = document.querySelector("#openMapBtn");
 const openMapPreviewBtn = document.querySelector("#openMapPreviewBtn");
 const closeMapBtn = document.querySelector("#closeMapBtn");
@@ -22,10 +24,16 @@ const recordCountNode = document.querySelector("#recordCount");
 const resultMetaNode = document.querySelector("#resultMeta");
 const resultTemplate = document.querySelector("#resultTemplate");
 const galleryThumbTemplate = document.querySelector("#galleryThumbTemplate");
+const themeColorMeta = document.querySelector('meta[name="theme-color"]');
 
 const dayNames = ["", "Po", "Ut", "St", "Ct", "Pa", "So", "Ne"];
 const defaultMapCenter = [49.8175, 15.473];
 const defaultMapZoom = 7;
+const THEME_CACHE_KEY = "zradlomapa:theme";
+const THEME_COLORS = {
+  light: "#f5f1eb",
+  dark: "#11141b"
+};
 const DATASET_SOURCES = [
   { url: "./data/restaurants.json", label: "aktuální snapshot" },
   { url: "./data/restaurants-backup.json", label: "GitHub záloha" }
@@ -56,6 +64,7 @@ let filtered = [];
 let selectedRestaurantId = null;
 let selectedImageIndex = 0;
 let map = null;
+let mapTileLayer = null;
 let mapLayerGroup = null;
 let userLocationMarker = null;
 let userCoords = null;
@@ -73,6 +82,7 @@ async function boot() {
 
     hydrateTagFilter(dataset);
     wireEvents();
+    applyTheme(getStoredTheme());
     syncMapControlsFromMain();
     restoreSelectionFromHash();
     runSearch();
@@ -170,6 +180,9 @@ function wireEvents() {
     syncMapControlsFromMain();
     runSearch();
   });
+  themeToggleBtn?.addEventListener("click", () => {
+    applyTheme(getCurrentTheme() === "light" ? "dark" : "light");
+  });
   quickFilterChips.forEach((chip) => {
     chip.addEventListener("click", () => {
       const nextQuery = chip.dataset.query || "";
@@ -233,6 +246,42 @@ function wireEvents() {
       }
     }
   });
+}
+
+function getStoredTheme() {
+  try {
+    return window.localStorage.getItem(THEME_CACHE_KEY) || document.documentElement.dataset.theme || "light";
+  } catch {
+    return document.documentElement.dataset.theme || "light";
+  }
+}
+
+function getCurrentTheme() {
+  return document.documentElement.dataset.theme || "light";
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  try {
+    window.localStorage.setItem(THEME_CACHE_KEY, theme);
+  } catch {
+    // Ignore storage failures; the UI can still switch for the current session.
+  }
+
+  if (themeToggleLabel) {
+    themeToggleLabel.textContent = theme === "light" ? "Light" : "Dark";
+  }
+
+  if (themeToggleBtn) {
+    themeToggleBtn.setAttribute("aria-label", theme === "light" ? "Přepnout na dark mode" : "Přepnout na light mode");
+    themeToggleBtn.setAttribute("title", theme === "light" ? "Přepnout na dark mode" : "Přepnout na light mode");
+  }
+
+  if (themeColorMeta) {
+    themeColorMeta.setAttribute("content", THEME_COLORS[theme] || THEME_COLORS.light);
+  }
+
+  syncMapTheme();
 }
 
 function hydrateTagFilter(restaurants) {
@@ -662,13 +711,49 @@ function initMapIfNeeded() {
     minZoom: 6
   }).setView(defaultMapCenter, defaultMapZoom);
 
-  window.L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  mapTileLayer = window.L.tileLayer(getMapTileUrl(), {
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
   }).addTo(map);
 
   mapLayerGroup = window.L.layerGroup().addTo(map);
   window.addEventListener("resize", requestMapResize);
+}
+
+function getMapTileUrl() {
+  return getCurrentTheme() === "dark"
+    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+}
+
+function syncMapTheme() {
+  if (!map || !window.L) {
+    return;
+  }
+
+  const nextUrl = getMapTileUrl();
+  const currentUrl = mapTileLayer?._url;
+
+  if (currentUrl === nextUrl) {
+    return;
+  }
+
+  if (mapTileLayer) {
+    map.removeLayer(mapTileLayer);
+  }
+
+  mapTileLayer = window.L.tileLayer(nextUrl, {
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  }).addTo(map);
+
+  if (mapLayerGroup) {
+    mapLayerGroup.bringToFront();
+  }
+
+  if (userLocationMarker) {
+    userLocationMarker.bringToFront();
+  }
 }
 
 function requestMapResize() {
