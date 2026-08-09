@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "sync": "node scripts/sync-data.mjs",
+    "backup:images": "node scripts/backup-place-images.mjs",
     "check": "node --check app.js"
   }
 }

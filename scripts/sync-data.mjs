@@ -1,4 +1,4 @@
-import { access, copyFile, mkdir, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 
 const API_BASE = "https://api.hejlik.cz/api/v1/restaurants";
 const PAGE_SIZE = 100;
@@ -42,6 +42,7 @@ async function main() {
   const primaryPath = new URL("../data/restaurants.json", import.meta.url);
   const backupPath = new URL("../data/restaurants-backup.json", import.meta.url);
 
+  await mergeLocalHeroMetadata(primaryPath, snapshot);
   await mkdir(dataDir, { recursive: true });
   await syncBackupSnapshot(primaryPath, backupPath);
   await writeFile(primaryPath, JSON.stringify(snapshot, null, 2) + "\n", "utf8");
@@ -71,6 +72,31 @@ async function ensureBackupExists(primaryPath, backupPath) {
 
     await copyFile(primaryPath, backupPath);
     console.log("Created initial data/restaurants-backup.json backup");
+  }
+}
+
+async function mergeLocalHeroMetadata(primaryPath, snapshot) {
+  try {
+    const raw = await readFile(primaryPath, "utf8");
+    const previous = JSON.parse(raw);
+    const heroById = new Map(
+      (previous.restaurants || [])
+        .filter((restaurant) => restaurant.localHero)
+        .map((restaurant) => [restaurant.id, restaurant.localHero])
+    );
+
+    snapshot.restaurants = snapshot.restaurants.map((restaurant) =>
+      heroById.has(restaurant.id)
+        ? {
+            ...restaurant,
+            localHero: heroById.get(restaurant.id)
+          }
+        : restaurant
+    );
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
   }
 }
 
