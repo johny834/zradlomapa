@@ -52,14 +52,21 @@
           </div>
         </div>
         <div class="hero-stats">
-          <div class="stat-card">
-            <span class="stat-label">Naposledy aktualizováno</span>
-            <strong id="syncTime">Načítám…</strong>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Počet podniků</span>
-            <strong id="recordCount">–</strong>
-          </div>
+          <details class="hero-info-card">
+            <summary class="hero-info-toggle" aria-label="Informace o snapshotu">
+              <span aria-hidden="true">i</span>
+            </summary>
+            <div class="hero-info-popover">
+              <div class="stat-card">
+                <span class="stat-label">Naposledy aktualizováno</span>
+                <strong id="syncTime">Načítám…</strong>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Počet podniků</span>
+                <strong id="recordCount">–</strong>
+              </div>
+            </div>
+          </details>
           <button id="openMapPreviewBtn" class="map-preview-card" type="button">
             <div class="map-preview-copy">
               <span class="stat-label">Mapa podniků</span>

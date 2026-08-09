@@ -199,12 +199,57 @@ a {
 }
 
 .hero-stats {
+  position: relative;
   padding: 18px;
   display: grid;
   gap: 14px;
   align-content: start;
   background:
     linear-gradient(180deg, oklch(0.23 0.025 260 / 0.95), oklch(0.18 0.025 260 / 0.95));
+}
+
+.hero-info-card {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+}
+
+.hero-info-card[open] {
+  z-index: 3;
+}
+
+.hero-info-toggle {
+  list-style: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in oklab, var(--brand) 30%, var(--line));
+  border-radius: 999px;
+  background: oklch(0.24 0.02 260 / 0.92);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 12px 24px oklch(0.02 0 0 / 0.18);
+}
+
+.hero-info-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.hero-info-toggle span {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.hero-info-popover {
+  position: absolute;
+  top: 42px;
+  right: 0;
+  width: min(260px, calc(100vw - 48px));
+  display: grid;
+  gap: 10px;
 }
 
 .stat-card,
@@ -432,15 +477,13 @@ a {
 
 .quick-filter-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 14px;
-  padding-bottom: 4px;
-  overflow-x: auto;
-  scrollbar-width: thin;
 }
 
 .quick-filter-chip {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   min-height: 42px;
   padding: 0 14px;
   color: var(--text);
@@ -897,7 +940,7 @@ a {
   }
 
   .hero-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .search-panel {
@@ -938,10 +981,20 @@ a {
 
   .hero-stats {
     grid-template-columns: 1fr;
+    padding-top: 56px;
   }
 
   .search-row {
     grid-template-columns: 1fr;
+  }
+
+  .quick-filter-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quick-filter-chip {
+    width: 100%;
   }
 
   #clearBtn,
@@ -1004,6 +1057,15 @@ a {
 }
 
 @media (max-width: 520px) {
+  .hero-info-card {
+    top: 12px;
+    right: 12px;
+  }
+
+  .hero-info-popover {
+    width: min(240px, calc(100vw - 40px));
+  }
+
   .hero h1 {
     font-size: 2.45rem;
     line-height: 1.08;
