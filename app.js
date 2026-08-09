@@ -30,6 +30,7 @@ const dayNames = ["", "Po", "Ut", "St", "Ct", "Pa", "So", "Ne"];
 const defaultMapCenter = [49.8175, 15.473];
 const defaultMapZoom = 7;
 const THEME_CACHE_KEY = "zradlomapa:theme";
+const RESULTS_RENDER_LIMIT = 120;
 const THEME_COLORS = {
   light: "#f5f1eb",
   dark: "#11141b"
@@ -326,10 +327,12 @@ function runSearch() {
       const queryMatches = !query || score > 0;
       return tagMatches && queryMatches;
     })
-    .sort((left, right) => right.score - left.score || left.item.name.localeCompare(right.item.name, "cs"))
-    .slice(0, 120);
+    .sort((left, right) => right.score - left.score || left.item.name.localeCompare(right.item.name, "cs"));
 
-  resultMetaNode.textContent = `${filtered.length} výsledků`;
+  resultMetaNode.textContent =
+    filtered.length > RESULTS_RENDER_LIMIT
+      ? `${filtered.length} výsledků · v seznamu prvních ${RESULTS_RENDER_LIMIT}`
+      : `${filtered.length} výsledků`;
   paintQuickFilters();
   syncSelection();
   paintResults();
@@ -405,7 +408,7 @@ function paintResults() {
     return;
   }
 
-  for (const { item, score } of filtered) {
+  for (const { item, score } of getRenderableResults()) {
     const fragment = resultTemplate.content.cloneNode(true);
     const button = fragment.querySelector(".result-hit");
     const address = fragment.querySelector(".result-address");
@@ -443,6 +446,26 @@ function paintResults() {
     button.addEventListener("click", () => selectRestaurant(item.id));
     resultsNode.append(fragment);
   }
+}
+
+function getRenderableResults() {
+  const visible = filtered.slice(0, RESULTS_RENDER_LIMIT);
+
+  if (!selectedRestaurantId) {
+    return visible;
+  }
+
+  const alreadyVisible = visible.some(({ item }) => item.id === selectedRestaurantId);
+  if (alreadyVisible) {
+    return visible;
+  }
+
+  const selectedEntry = filtered.find(({ item }) => item.id === selectedRestaurantId);
+  if (!selectedEntry) {
+    return visible;
+  }
+
+  return [...visible.slice(0, Math.max(RESULTS_RENDER_LIMIT - 1, 0)), selectedEntry];
 }
 
 function selectRestaurant(restaurantId) {
