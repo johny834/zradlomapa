@@ -1,6 +1,62 @@
 :root {
+  color-scheme: light;
+  --bg: oklch(0.97 0.01 80);
+  --bg-deep: oklch(0.93 0.015 75);
+  --panel: oklch(0.995 0.004 90 / 0.9);
+  --panel-strong: oklch(0.985 0.008 85 / 0.97);
+  --panel-solid: oklch(0.975 0.01 82);
+  --text: oklch(0.27 0.02 40);
+  --muted: oklch(0.56 0.02 55);
+  --line: oklch(0.86 0.02 70 / 0.9);
+  --line-strong: oklch(0.74 0.05 42 / 0.8);
+  --brand: oklch(0.73 0.16 40);
+  --brand-strong: oklch(0.64 0.18 32);
+  --brand-soft: oklch(0.87 0.07 38 / 0.42);
+  --teal: oklch(0.68 0.08 200);
+  --shadow-soft: 0 18px 44px oklch(0.62 0.02 45 / 0.14);
+  --shadow-strong: 0 34px 90px oklch(0.55 0.02 40 / 0.22);
+  --page-glow-a: oklch(0.9 0.05 35 / 0.62);
+  --page-glow-b: oklch(0.92 0.04 220 / 0.42);
+  --page-glow-c: oklch(0.9 0.03 165 / 0.28);
+  --hero-grad-start: oklch(0.99 0.006 85 / 0.98);
+  --hero-grad-end: oklch(0.95 0.02 72 / 0.96);
+  --hero-orb-a: oklch(0.79 0.15 32 / 0.24);
+  --hero-orb-b: oklch(0.74 0.07 205 / 0.16);
+  --card-grad-start: oklch(1 0 0 / 0.96);
+  --card-grad-end: oklch(0.97 0.01 82 / 0.98);
+  --input-bg: oklch(0.99 0.004 90 / 0.98);
+  --ghost-bg: oklch(0.985 0.008 85 / 0.95);
+  --preview-bg-start: oklch(0.985 0.008 82);
+  --preview-bg-end: oklch(0.94 0.015 78);
+  --mini-map-bg-start: #f4efe7;
+  --mini-map-bg-end: #ebe4da;
+  --mini-map-pill-bg: rgba(255, 252, 248, 0.88);
+  --mini-map-pill-border: rgba(218, 147, 89, 0.28);
+  --mini-map-pill-text: rgba(87, 53, 29, 0.88);
+  --mini-map-overlay-top: rgba(255, 255, 255, 0.04);
+  --mini-map-overlay-bottom: rgba(215, 198, 181, 0.34);
+  --mini-map-overlay-glow: rgba(255, 222, 194, 0.3);
+  --overlay-bg: oklch(0.36 0.01 40 / 0.22);
+  --drawer-grad-start: oklch(0.995 0.004 90 / 0.99);
+  --drawer-grad-end: oklch(0.965 0.01 82 / 0.99);
+  --leaflet-bg: #ece5da;
+  --marker-bg: rgba(255, 253, 250, 0.96);
+  --marker-border: rgba(222, 164, 112, 0.45);
+  --marker-shadow: 0 8px 18px rgba(108, 82, 54, 0.16);
+  --detail-link-bg: color-mix(in oklab, var(--brand) 10%, white);
+  --detail-link-text: oklch(0.42 0.1 42);
+  --theme-toggle-bg: oklch(0.995 0.004 90 / 0.96);
+  --theme-toggle-text: var(--text);
+  --radius-xl: 34px;
+  --radius-md: 18px;
+  --font-sans: "Outfit", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+:root[data-theme="dark"] {
   color-scheme: dark;
   --bg: oklch(0.16 0.02 270);
+  --bg-deep: oklch(0.12 0.015 260);
   --panel: oklch(0.23 0.02 265 / 0.82);
   --panel-strong: oklch(0.27 0.025 262 / 0.95);
   --panel-solid: oklch(0.21 0.025 264);
@@ -8,16 +64,42 @@
   --muted: oklch(0.76 0.02 80);
   --line: oklch(0.38 0.03 260 / 0.75);
   --line-strong: oklch(0.52 0.08 38 / 0.75);
-  --brand: oklch(0.73 0.16 40);
-  --brand-strong: oklch(0.64 0.18 32);
   --brand-soft: oklch(0.36 0.08 36 / 0.28);
   --teal: oklch(0.78 0.08 190);
   --shadow-soft: 0 18px 44px oklch(0.05 0 0 / 0.24);
   --shadow-strong: 0 40px 120px oklch(0.02 0 0 / 0.46);
-  --radius-xl: 34px;
-  --radius-md: 18px;
-  --font-sans: "Outfit", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", monospace;
+  --page-glow-a: oklch(0.33 0.07 25 / 0.42);
+  --page-glow-b: oklch(0.28 0.05 215 / 0.28);
+  --page-glow-c: oklch(0.26 0.05 160 / 0.18);
+  --hero-grad-start: oklch(0.24 0.03 262 / 0.96);
+  --hero-grad-end: oklch(0.18 0.025 265 / 0.92);
+  --hero-orb-a: oklch(0.62 0.18 28 / 0.58);
+  --hero-orb-b: oklch(0.5 0.08 200 / 0.26);
+  --card-grad-start: oklch(0.3 0.02 260 / 0.82);
+  --card-grad-end: oklch(0.24 0.02 260 / 0.92);
+  --input-bg: oklch(0.19 0.02 260 / 0.95);
+  --ghost-bg: oklch(0.22 0.02 260 / 0.9);
+  --preview-bg-start: oklch(0.3 0.02 260 / 0.82);
+  --preview-bg-end: oklch(0.24 0.02 260 / 0.92);
+  --mini-map-bg-start: #181b22;
+  --mini-map-bg-end: #0e1016;
+  --mini-map-pill-bg: rgba(10, 12, 16, 0.72);
+  --mini-map-pill-border: rgba(255, 214, 177, 0.28);
+  --mini-map-pill-text: rgba(255, 247, 240, 0.9);
+  --mini-map-overlay-top: rgba(8, 10, 14, 0.08);
+  --mini-map-overlay-bottom: rgba(8, 10, 14, 0.42);
+  --mini-map-overlay-glow: rgba(255, 234, 210, 0.16);
+  --overlay-bg: oklch(0.02 0 0 / 0.62);
+  --drawer-grad-start: oklch(0.24 0.025 260 / 0.98);
+  --drawer-grad-end: oklch(0.16 0.02 260 / 0.98);
+  --leaflet-bg: #101218;
+  --marker-bg: rgba(18, 20, 27, 0.88);
+  --marker-border: rgba(255, 215, 184, 0.45);
+  --marker-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+  --detail-link-bg: color-mix(in oklab, var(--brand) 12%, transparent);
+  --detail-link-text: oklch(0.95 0.03 70);
+  --theme-toggle-bg: oklch(0.22 0.02 260 / 0.94);
+  --theme-toggle-text: var(--text);
 }
 
 * {
@@ -31,10 +113,10 @@ body {
   color: var(--text);
   font-family: var(--font-sans);
   background:
-    radial-gradient(circle at 0% 0%, oklch(0.33 0.07 25 / 0.42), transparent 26%),
-    radial-gradient(circle at 100% 0%, oklch(0.28 0.05 215 / 0.28), transparent 22%),
-    radial-gradient(circle at 50% 100%, oklch(0.26 0.05 160 / 0.18), transparent 26%),
-    linear-gradient(180deg, var(--bg), oklch(0.12 0.015 260));
+    radial-gradient(circle at 0% 0%, var(--page-glow-a), transparent 26%),
+    radial-gradient(circle at 100% 0%, var(--page-glow-b), transparent 22%),
+    radial-gradient(circle at 50% 100%, var(--page-glow-c), transparent 26%),
+    linear-gradient(180deg, var(--bg), var(--bg-deep));
   background-attachment: fixed;
 }
 
@@ -66,6 +148,45 @@ a {
   margin: 0 auto;
 }
 
+.page-tools {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+.theme-toggle-btn {
+  min-height: 44px;
+  padding: 8px 14px;
+  display: inline-grid;
+  gap: 2px;
+  justify-items: start;
+  border: 1px solid color-mix(in oklab, var(--brand) 26%, var(--line));
+  border-radius: 16px;
+  background: var(--theme-toggle-bg);
+  color: var(--theme-toggle-text);
+  box-shadow: var(--shadow-soft);
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.theme-toggle-btn:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklab, var(--brand) 40%, var(--line));
+}
+
+.theme-toggle-btn:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--brand) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.theme-toggle-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.95fr);
@@ -89,7 +210,7 @@ a {
   overflow: hidden;
   padding: 34px;
   background:
-    linear-gradient(140deg, oklch(0.24 0.03 262 / 0.96), oklch(0.18 0.025 265 / 0.92)),
+    linear-gradient(140deg, var(--hero-grad-start), var(--hero-grad-end)),
     var(--panel);
   box-shadow: var(--shadow-strong);
 }
@@ -106,14 +227,14 @@ a {
   inset: -80px auto auto -60px;
   width: 240px;
   height: 240px;
-  background: radial-gradient(circle, oklch(0.62 0.18 28 / 0.58), transparent 66%);
+  background: radial-gradient(circle, var(--hero-orb-a), transparent 66%);
 }
 
 .hero-copy::after {
   inset: auto -70px -70px auto;
   width: 260px;
   height: 260px;
-  background: radial-gradient(circle, oklch(0.5 0.08 200 / 0.26), transparent 62%);
+  background: radial-gradient(circle, var(--hero-orb-b), transparent 62%);
 }
 
 .hero-topline,
@@ -205,7 +326,7 @@ a {
   gap: 14px;
   align-content: start;
   background:
-    linear-gradient(180deg, oklch(0.23 0.025 260 / 0.95), oklch(0.18 0.025 260 / 0.95));
+    linear-gradient(180deg, var(--card-grad-start), var(--card-grad-end));
 }
 
 .hero-info-card {
@@ -227,7 +348,7 @@ a {
   place-items: center;
   border: 1px solid color-mix(in oklab, var(--brand) 30%, var(--line));
   border-radius: 999px;
-  background: oklch(0.24 0.02 260 / 0.92);
+  background: var(--ghost-bg);
   color: var(--text);
   cursor: pointer;
   box-shadow: 0 12px 24px oklch(0.02 0 0 / 0.18);
@@ -257,7 +378,7 @@ a {
   padding: 18px;
   border-radius: 22px;
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, oklch(0.3 0.02 260 / 0.82), oklch(0.24 0.02 260 / 0.92));
+  background: linear-gradient(180deg, var(--card-grad-start), var(--card-grad-end));
 }
 
 .stat-card strong,
@@ -288,7 +409,7 @@ a {
   overflow: hidden;
   border-radius: 18px;
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, #181b22, #0e1016);
+  background: linear-gradient(180deg, var(--mini-map-bg-start), var(--mini-map-bg-end));
   isolation: isolate;
 }
 
@@ -310,9 +431,9 @@ a {
   z-index: 1;
   padding: 8px 10px;
   border-radius: 999px;
-  background: rgba(10, 12, 16, 0.72);
-  border: 1px solid rgba(255, 214, 177, 0.28);
-  color: rgba(255, 247, 240, 0.9);
+  background: var(--mini-map-pill-bg);
+  border: 1px solid var(--mini-map-pill-border);
+  color: var(--mini-map-pill-text);
   font-size: 0.77rem;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -325,8 +446,8 @@ a {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(8, 10, 14, 0.08), rgba(8, 10, 14, 0.42)),
-    radial-gradient(circle at 82% 24%, rgba(255, 234, 210, 0.16), transparent 26%);
+    linear-gradient(180deg, var(--mini-map-overlay-top), var(--mini-map-overlay-bottom)),
+    radial-gradient(circle at 82% 24%, var(--mini-map-overlay-glow), transparent 26%);
   pointer-events: none;
 }
 
@@ -365,7 +486,7 @@ a {
   position: sticky;
   top: 20px;
   background:
-    linear-gradient(180deg, oklch(0.22 0.02 260 / 0.92), oklch(0.17 0.02 260 / 0.94));
+    linear-gradient(180deg, var(--card-grad-start), var(--card-grad-end));
 }
 
 .panel-head {
@@ -418,7 +539,7 @@ a {
   padding: 14px 16px;
   color: var(--text);
   font-weight: 500;
-  background: oklch(0.19 0.02 260 / 0.95);
+  background: var(--input-bg);
   box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.03);
 }
 
@@ -459,7 +580,7 @@ a {
 
 .ghost-btn {
   color: var(--text);
-  background: oklch(0.22 0.02 260 / 0.9);
+  background: var(--ghost-bg);
 }
 
 #clearBtn:hover,
@@ -487,7 +608,7 @@ a {
   min-height: 42px;
   padding: 0 14px;
   color: var(--text);
-  background: oklch(0.2 0.02 260 / 0.94);
+  background: var(--ghost-bg);
   font-family: var(--font-mono);
   font-size: 0.78rem;
   font-weight: 600;
@@ -537,7 +658,7 @@ a {
   padding: 18px;
   color: var(--text);
   background:
-    linear-gradient(180deg, oklch(0.27 0.02 260 / 0.96), oklch(0.22 0.02 260 / 0.94));
+    linear-gradient(180deg, var(--card-grad-start), var(--card-grad-end));
   box-shadow: 0 20px 40px oklch(0.02 0 0 / 0.18);
   cursor: pointer;
   transition:
@@ -556,7 +677,7 @@ a {
 .result-hit.is-active {
   border-color: color-mix(in oklab, var(--brand) 60%, var(--line));
   background:
-    linear-gradient(180deg, color-mix(in oklab, var(--brand-soft) 100%, oklch(0.28 0.02 260 / 0.96)), oklch(0.22 0.02 260 / 0.98));
+    linear-gradient(180deg, color-mix(in oklab, var(--brand-soft) 100%, var(--card-grad-start)), var(--card-grad-end));
   box-shadow:
     0 0 0 1px color-mix(in oklab, var(--brand) 26%, transparent),
     0 28px 56px oklch(0.02 0 0 / 0.3);
@@ -621,7 +742,7 @@ a {
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: oklch(0.02 0 0 / 0.62);
+  background: var(--overlay-bg);
   backdrop-filter: blur(10px);
 }
 
@@ -660,7 +781,7 @@ a {
   border: 1px solid color-mix(in oklab, var(--brand) 12%, var(--line));
   border-radius: 32px;
   background:
-    linear-gradient(180deg, oklch(0.24 0.025 260 / 0.98), oklch(0.16 0.02 260 / 0.98));
+    linear-gradient(180deg, var(--drawer-grad-start), var(--drawer-grad-end));
   overflow: hidden;
 }
 
@@ -672,7 +793,7 @@ a {
   gap: 16px;
   padding: 18px;
   background:
-    linear-gradient(180deg, oklch(0.24 0.025 260 / 0.98), oklch(0.16 0.02 260 / 0.98));
+    linear-gradient(180deg, var(--drawer-grad-start), var(--drawer-grad-end));
 }
 
 .detail-drawer-head,
@@ -700,7 +821,7 @@ a {
   height: 48px;
   flex: 0 0 auto;
   color: var(--text);
-  background: oklch(0.28 0.02 260 / 0.92);
+  background: var(--ghost-bg);
   cursor: pointer;
 }
 
@@ -714,7 +835,7 @@ a {
 .leaflet-container {
   height: 100%;
   width: 100%;
-  background: #101218;
+  background: var(--leaflet-bg);
   font: inherit;
 }
 
@@ -729,9 +850,9 @@ a {
   width: 24px;
   height: 24px;
   border-radius: 999px;
-  background: rgba(18, 20, 27, 0.88);
-  border: 1px solid rgba(255, 215, 184, 0.45);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+  background: var(--marker-bg);
+  border: 1px solid var(--marker-border);
+  box-shadow: var(--marker-shadow);
   font-size: 14px;
   line-height: 1;
 }
@@ -858,8 +979,8 @@ a {
   padding: 0 14px;
   border-radius: 999px;
   border: 1px solid color-mix(in oklab, var(--brand) 24%, var(--line));
-  background: color-mix(in oklab, var(--brand) 12%, transparent);
-  color: oklch(0.95 0.03 70);
+  background: var(--detail-link-bg);
+  color: var(--detail-link-text);
   text-decoration: none;
   font-weight: 600;
 }
