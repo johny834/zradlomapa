@@ -355,6 +355,7 @@ a {
 #mapQuery,
 #mapTagFilter,
 #clearBtn,
+.quick-filter-chip,
 .ghost-btn,
 .result-hit,
 .gallery-thumb,
@@ -385,6 +386,7 @@ a {
 #tagFilter:focus,
 #mapQuery:focus,
 #mapTagFilter:focus,
+.quick-filter-chip:focus-visible,
 .result-hit:focus-visible,
 #clearBtn:focus-visible,
 .ghost-btn:focus-visible,
@@ -426,6 +428,44 @@ a {
   display: grid;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.quick-filter-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding-bottom: 4px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.quick-filter-chip {
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 0 14px;
+  color: var(--text);
+  background: oklch(0.2 0.02 260 / 0.94);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.quick-filter-chip:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklab, var(--brand) 42%, var(--line));
+}
+
+.quick-filter-chip.is-active {
+  border-color: color-mix(in oklab, var(--brand) 58%, var(--line));
+  background: linear-gradient(180deg, color-mix(in oklab, var(--brand) 26%, transparent), color-mix(in oklab, var(--brand-soft) 100%, oklch(0.22 0.02 260 / 0.94)));
+  box-shadow: 0 12px 24px oklch(0.02 0 0 / 0.18);
 }
 
 .results-column {
