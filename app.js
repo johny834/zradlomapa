@@ -1,6 +1,7 @@
 const queryInput = document.querySelector("#query");
 const tagFilter = document.querySelector("#tagFilter");
 const clearBtn = document.querySelector("#clearBtn");
+const quickFilterChips = [...document.querySelectorAll(".quick-filter-chip")];
 const openMapBtn = document.querySelector("#openMapBtn");
 const openMapPreviewBtn = document.querySelector("#openMapPreviewBtn");
 const closeMapBtn = document.querySelector("#closeMapBtn");
@@ -169,6 +170,16 @@ function wireEvents() {
     syncMapControlsFromMain();
     runSearch();
   });
+  quickFilterChips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const nextQuery = chip.dataset.query || "";
+      queryInput.value = queryInput.value.trim().toLowerCase() === nextQuery.toLowerCase() ? "" : nextQuery;
+      syncMapControlsFromMain();
+      runSearch();
+      queryInput.focus();
+      queryInput.setSelectionRange(queryInput.value.length, queryInput.value.length);
+    });
+  });
 
   mapQueryInput.addEventListener("input", () => {
     if (syncingMapControls) {
@@ -269,6 +280,7 @@ function runSearch() {
     .slice(0, 120);
 
   resultMetaNode.textContent = `${filtered.length} výsledků`;
+  paintQuickFilters();
   syncSelection();
   paintResults();
   refreshMapMarkers();
@@ -282,6 +294,17 @@ function runSearch() {
   } else {
     closeDetail({ clearHash: false });
   }
+}
+
+function paintQuickFilters() {
+  const activeQuery = queryInput.value.trim().toLowerCase();
+
+  quickFilterChips.forEach((chip) => {
+    const chipQuery = (chip.dataset.query || "").trim().toLowerCase();
+    const isActive = Boolean(activeQuery) && chipQuery === activeQuery;
+    chip.classList.toggle("is-active", isActive);
+    chip.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
 }
 
 function syncSelection() {
