@@ -176,6 +176,7 @@ function wireEvents() {
       queryInput.value = queryInput.value.trim().toLowerCase() === nextQuery.toLowerCase() ? "" : nextQuery;
       syncMapControlsFromMain();
       runSearch();
+      scrollToFirstResult();
       queryInput.focus();
       queryInput.setSelectionRange(queryInput.value.length, queryInput.value.length);
     });
@@ -304,6 +305,18 @@ function paintQuickFilters() {
     const isActive = Boolean(activeQuery) && chipQuery === activeQuery;
     chip.classList.toggle("is-active", isActive);
     chip.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+}
+
+function scrollToFirstResult() {
+  const firstResult = resultsNode.querySelector(".result-card");
+
+  if (!firstResult) {
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    firstResult.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
