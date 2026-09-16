@@ -36,8 +36,10 @@ const THEME_COLORS = {
   dark: "#11141b"
 };
 const LIVE_API_ENDPOINT = document.querySelector('meta[name="zradlomapa-api"]')?.content || "./api/restaurants";
-const API_PAGE_SIZE = 100;
+const API_PAGE_SIZE = LIVE_API_ENDPOINT.includes("r.jina.ai") ? 1000 : 100;
 const API_MAX_PAGES = 100;
+const API_BATCH_SIZE = LIVE_API_ENDPOINT.includes("r.jina.ai") ? 3 : 1;
+const API_MAX_RETRIES = 2;
 const emojiByTagType = {
   brewery: "🍺",
   beer: "🍺",
@@ -69,6 +71,10 @@ let userLocationMarker = null;
 let userCoords = null;
 let syncingMapControls = false;
 
+if (!window.location.hash && !queryInput.value) {
+  queryInput.value = quickFilterChips[0]?.dataset.query || "Praha";
+}
+
 boot();
 
 async function boot() {
@@ -98,35 +104,82 @@ async function boot() {
 async function loadRestaurantsLive() {
   const restaurants = [];
 
-  for (let page = 0; page < API_MAX_PAGES; page += 1) {
-    const offset = page * API_PAGE_SIZE;
-    const url = new URL(LIVE_API_ENDPOINT, window.location.href);
-    url.searchParams.set("limit", String(API_PAGE_SIZE));
-    url.searchParams.set("offset", String(offset));
-
+  for (let page = 0; page < API_MAX_PAGES; page += API_BATCH_SIZE) {
     syncTimeNode.textContent = `Načítám živá data… ${restaurants.length.toLocaleString("cs-CZ")}`;
 
-    const response = await fetch(url, {
-      cache: "no-store",
-      headers: { accept: "application/json" }
-    });
+    const pages = await Promise.all(
+      Array.from({ length: API_BATCH_SIZE }, (_, batchIndex) => {
+        const offset = (page + batchIndex) * API_PAGE_SIZE;
+        return loadApiPage(offset);
+      })
+    );
 
-    if (!response.ok) {
-      throw new Error(`Live API selhalo na offsetu ${offset}: HTTP ${response.status}`);
-    }
-
-    const payload = await response.json();
-    if (!payload || !Array.isArray(payload.data)) {
-      throw new Error(`Live API vrátilo neplatný formát na offsetu ${offset}`);
-    }
-
-    restaurants.push(...payload.data);
-    if (payload.data.length < API_PAGE_SIZE) {
-      return restaurants;
+    for (const pageData of pages) {
+      restaurants.push(...pageData);
+      if (pageData.length < API_PAGE_SIZE) {
+        return restaurants;
+      }
     }
   }
 
   throw new Error(`Live API překročilo bezpečnostní limit ${API_MAX_PAGES} stránek`);
+}
+
+async function loadApiPage(offset) {
+  let lastError;
+
+  for (let attempt = 0; attempt <= API_MAX_RETRIES; attempt += 1) {
+    const url = new URL(LIVE_API_ENDPOINT, window.location.href);
+    url.searchParams.set("limit", String(API_PAGE_SIZE));
+    url.searchParams.set("offset", String(offset));
+
+    if (url.hostname === "r.jina.ai") {
+      url.searchParams.set("_live", String(Date.now()));
+    }
+
+    try {
+      const response = await fetch(url, {
+        cache: "no-store",
+        headers: { accept: "application/json, text/plain" }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const payload = await parseApiPayload(response, url.hostname === "r.jina.ai");
+      if (!payload || !Array.isArray(payload.data)) {
+        throw new Error("neplatný formát odpovědi");
+      }
+
+      return payload.data;
+    } catch (error) {
+      lastError = error;
+      if (attempt < API_MAX_RETRIES) {
+        await wait(500 * 2 ** attempt);
+      }
+    }
+  }
+
+  throw new Error(`Live API selhalo na offsetu ${offset}: ${lastError?.message || "neznámá chyba"}`);
+}
+
+async function parseApiPayload(response, wrappedByJina) {
+  if (!wrappedByJina) {
+    return response.json();
+  }
+
+  const text = await response.text();
+  const jsonStart = text.indexOf('{"data":');
+  if (jsonStart === -1) {
+    throw new Error("CORS bridge nevrátil JSON z Gastromapy");
+  }
+
+  return JSON.parse(text.slice(jsonStart).trim());
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
 function wireEvents() {

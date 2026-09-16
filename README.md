@@ -6,7 +6,8 @@ Webová aplikace nad živým API Gastromapy. Repozitář záměrně neobsahuje �
 
 ## Architektura
 
-- browser načítá podniky po stránkách přes `GET /api/restaurants`
+- browser načítá podniky živě po stránkách z Gastromapa API
+- produkční GitHub Pages používá `r.jina.ai` pouze jako tranzitní CORS bridge; v repozitáři se odpovědi neukládají
 - `server.mjs` požadavek okamžitě přepošle na `https://api.hejlik.cz/api/v1/restaurants`
 - proxy používá `Cache-Control: no-store` a data nikam nezapisuje
 - fotografie se zobrazují přímo ze vzdálených URL vrácených živým API
@@ -26,7 +27,7 @@ Potom otevři `http://127.0.0.1:4173`.
 
 ## Produkční nasazení
 
-Nasazení musí podporovat Node proces ze `server.mjs`, případně samostatnou serverless/edge proxy se stejnou cestou `/api/restaurants`. Samotný GitHub Pages neumí serverovou proxy; statický frontend tam lze hostovat jen tehdy, když meta tag `zradlomapa-api` v `index.html` ukazuje na nasazenou HTTPS proxy.
+Současný GitHub Pages deployment používá veřejný tranzitní CORS bridge uvedený v meta tagu `zradlomapa-api`. Dlouhodobě je lepší nasadit vlastní Node/serverless/edge proxy ze `server.mjs` a meta tag přepnout na její HTTPS URL.
 
 Pro oddělenou proxy nastav:
 
