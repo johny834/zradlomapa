@@ -4,17 +4,15 @@ const configuredEndpoint =
 const LIVE_API_ENDPOINT = ["localhost", "127.0.0.1"].includes(location.hostname)
   ? "./api/restaurants"
   : configuredEndpoint;
-const API_PAGE_SIZE = LIVE_API_ENDPOINT.includes("r.jina.ai") ? 1000 : 100;
+const API_PAGE_SIZE = 100;
 const API_MAX_PAGES = 100;
-const API_BATCH_SIZE = LIVE_API_ENDPOINT.includes("r.jina.ai") ? 3 : 1;
+const API_BATCH_SIZE = 2;
 const API_MAX_RETRIES = 2;
 
 export async function loadRestaurantsLive(onProgress = () => {}) {
   const restaurants = [];
 
   for (let page = 0; page < API_MAX_PAGES; page += API_BATCH_SIZE) {
-    onProgress(restaurants.length);
-
     const pages = await Promise.all(
       Array.from({ length: API_BATCH_SIZE }, (_, batchIndex) => {
         const offset = (page + batchIndex) * API_PAGE_SIZE;
@@ -24,6 +22,7 @@ export async function loadRestaurantsLive(onProgress = () => {}) {
 
     for (const pageData of pages) {
       restaurants.push(...pageData);
+      onProgress(restaurants, pageData);
       if (pageData.length < API_PAGE_SIZE) {
         return restaurants;
       }

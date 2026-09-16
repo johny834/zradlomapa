@@ -83,33 +83,54 @@ async function boot() {
   if (loading) return;
   loading = true;
   retryBtn.hidden = true;
+  dataset = [];
+  filtered = [];
+  resultsNode.replaceChildren();
+  loadMoreBtn.hidden = true;
   resultsNode.setAttribute("aria-busy", "true");
   syncTimeNode.textContent = "Načítám podniky…";
   try {
-    const restaurants = await loadRestaurantsLive((count) => {
-      syncTimeNode.textContent = `Načítám podniky… ${count}`;
+    const restaurants = await loadRestaurantsLive((restaurants, page) => {
+      dataset.push(...page.map(enrichRestaurant));
+      syncTimeNode.textContent = `Načítám další podniky… ${restaurants.length}`;
+      const activeTag = tagFilter.value;
+      hydrateTagFilter(dataset);
+      tagFilter.value = activeTag;
+      syncMapControlsFromMain();
+      if (!selectedRestaurantId) restoreSelectionFromHash();
+      runSearch({ progressive: true });
     });
     dataset = restaurants.map(enrichRestaurant);
 
     syncTimeNode.textContent = `Aktualizováno v ${new Date().toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}`;
     recordCountNode.textContent = dataset.length.toLocaleString("cs-CZ");
 
+    const activeTag = tagFilter.value;
     hydrateTagFilter(dataset);
+    tagFilter.value = activeTag;
     applyTheme(getStoredTheme());
     syncMapControlsFromMain();
     restoreSelectionFromHash();
     runSearch();
   } catch (error) {
     console.error(error);
-    syncTimeNode.textContent = "Podniky se nepodařilo načíst.";
-    resultMetaNode.textContent = "Nedostupné připojení";
+    syncTimeNode.textContent = dataset.length
+      ? `Načítání se přerušilo. K dispozici je ${dataset.length} podniků.`
+      : "Podniky se nepodařilo načíst.";
+    resultMetaNode.textContent = dataset.length
+      ? `${filtered.length} podniků · neúplný seznam`
+      : "Nedostupné připojení";
     retryBtn.hidden = false;
-    resultsNode.innerHTML =
-      '<div class="empty-state">Nepodařilo se načíst živá data. Zkuste stránku obnovit později.</div>';
-    detailNode.innerHTML =
-      '<div class="empty-state">Detail není k dispozici, protože živé API neodpovědělo.</div>';
+    if (!dataset.length)
+      resultsNode.innerHTML =
+        '<div class="empty-state">Nepodařilo se načíst živá data. Zkuste stránku obnovit později.</div>';
+    if (!dataset.length)
+      detailNode.innerHTML =
+        '<div class="empty-state">Detail není k dispozici, protože živé API neodpovědělo.</div>';
   } finally {
     loading = false;
+    if (retryBtn.hidden)
+      resultMetaNode.textContent = `${filtered.length} podniků`;
     resultsNode.setAttribute("aria-busy", "false");
   }
 }
@@ -306,8 +327,8 @@ function syncMapControlsFromMain() {
   syncingMapControls = false;
 }
 
-function runSearch() {
-  renderLimit = RESULTS_PAGE_SIZE;
+function runSearch({ progressive = false } = {}) {
+  if (!progressive) renderLimit = RESULTS_PAGE_SIZE;
   const query = normalizeText(queryInput.value.trim());
   const activeTag = tagFilter.value;
 
@@ -325,12 +346,13 @@ function runSearch() {
         left.item.name.localeCompare(right.item.name, "cs"),
     );
 
-  resultMetaNode.textContent = `${filtered.length} podniků`;
+  resultMetaNode.textContent = `${filtered.length} podniků${loading ? " · načítání pokračuje" : ""}`;
   paintQuickFilters();
   syncSelection();
   paintResults();
-  refreshMapMarkers();
+  refreshMapMarkers(progressive);
 
+  if (progressive && !detailOverlayNode.hidden) return;
   if (selectedRestaurantId) {
     const current = dataset.find((item) => item.id === selectedRestaurantId);
     if (current) {
@@ -873,7 +895,7 @@ function applyUserCenteredMapView() {
     : "Polohu jsem našel, ale v blízkém okolí zatím nic není.";
 }
 
-function refreshMapMarkers() {
+function refreshMapMarkers(preserveView = false) {
   if (!map || !mapLayerGroup) {
     return;
   }
@@ -892,7 +914,7 @@ function refreshMapMarkers() {
       ? `Zobrazuji ${filtered.length} podniků podle aktuálního filtru`
       : `Zobrazuji ${source.length} podniků napříč Českem`;
 
-  fitMapToBounds(map, bounds);
+  if (!preserveView || mapOverlayNode.hidden) fitMapToBounds(map, bounds);
 }
 
 function paintMarkers(layerGroup, source, options = {}) {

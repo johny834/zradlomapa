@@ -76,3 +76,7 @@ Vedle `npm run check` ověřte v prohlížeči s živým API šířky 320, 390, 
 ## Mapový podklad
 
 Mapa používá veřejné vektorové dlaždice OpenFreeMap (styl Liberty) přes MapLibre GL a Leaflet. OpenFreeMap nevyžaduje registraci ani API klíč. Podklad zůstává světlý i při tmavém vzhledu ovládání; atribuce poskytovatelů je vždy viditelná. Původní CARTO vracelo obrázky s nápisem „API KEY REQUIRED“ i se stavem HTTP 200, proto nestačí testovat pouze HTTP status dlaždic.
+
+## Menší živé dávky
+
+Seznam se načítá po 100 podnicích, maximálně dvěma souběžnými požadavky. Výsledky se zobrazují průběžně; při přerušení zůstanou již načtené položky viditelné s upozorněním na neúplný seznam. Opakování začne nový živý průchod od začátku. `no-store` i `X-No-Cache` zůstávají zachovány; žádná persistentní cache nepřibyla. Celý seznam se postupně načte kvůli lokálnímu hledání: menší dávky neznamenají menší celkový přenos.
