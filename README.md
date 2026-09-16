@@ -72,3 +72,7 @@ Repozitář smí obsahovat pouze zdrojový kód a vlastní statické assety apli
 ### Ověření změn
 
 Vedle `npm run check` ověřte v prohlížeči s živým API šířky 320, 390, 768 a 1440 px; hledání bez diakritiky; další výsledky; prázdnou a filtrovanou mapu; detail a navigaci; přímý odkaz na podnik mimo výchozí město; Escape a návrat fokusu; tmavý vzhled; výpadek s opakováním. Pro GitHub Pages ověřte také živou cestu přes CORS bridge. Testovací data ani fotografie neukládejte do repozitáře.
+
+## Mapový podklad
+
+Mapa používá veřejné vektorové dlaždice OpenFreeMap (styl Liberty) přes MapLibre GL a Leaflet. OpenFreeMap nevyžaduje registraci ani API klíč. Podklad zůstává světlý i při tmavém vzhledu ovládání; atribuce poskytovatelů je vždy viditelná. Původní CARTO vracelo obrázky s nápisem „API KEY REQUIRED“ i se stavem HTTP 200, proto nestačí testovat pouze HTTP status dlaždic.

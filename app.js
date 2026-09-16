@@ -273,8 +273,6 @@ function applyTheme(theme) {
       THEME_COLORS[theme] || THEME_COLORS.light,
     );
   }
-
-  syncMapTheme();
 }
 
 function hydrateTagFilter(restaurants) {
@@ -726,7 +724,7 @@ function closeMap() {
 }
 
 function initMapIfNeeded() {
-  if (map || !window.L) {
+  if (map || !window.L?.maplibreGL || !window.maplibregl) {
     return;
   }
 
@@ -735,45 +733,26 @@ function initMapIfNeeded() {
     minZoom: 6,
   }).setView(defaultMapCenter, defaultMapZoom);
 
-  mapTileLayer = window.L.tileLayer(getMapTileUrl(), {
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  }).addTo(map);
+  // OpenFreeMap's public vector tiles require no registration or API key.
+  try {
+    mapTileLayer = window.L.maplibreGL({
+      style: "https://tiles.openfreemap.org/styles/liberty",
+      attribution:
+        '<a href="https://openfreemap.org/">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+    mapTileLayer.getMaplibreMap().on("error", () => {
+      mapMetaNode.textContent =
+        "Mapový podklad se nepodařilo načíst. Obnovte stránku nebo použijte seznam.";
+    });
+  } catch {
+    map.remove();
+    map = null;
+    mapTileLayer = null;
+    return;
+  }
 
   mapLayerGroup = window.L.layerGroup().addTo(map);
   window.addEventListener("resize", requestMapResize);
-}
-
-function getMapTileUrl() {
-  return getCurrentTheme() === "dark"
-    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-    : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
-}
-
-function syncMapTheme() {
-  if (!map || !window.L) {
-    return;
-  }
-
-  const nextUrl = getMapTileUrl();
-  const currentUrl = mapTileLayer?._url;
-
-  if (currentUrl === nextUrl) {
-    return;
-  }
-
-  if (mapTileLayer) {
-    map.removeLayer(mapTileLayer);
-  }
-
-  mapTileLayer = window.L.tileLayer(nextUrl, {
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  }).addTo(map);
-
-  if (userLocationMarker) {
-    userLocationMarker.bringToFront();
-  }
 }
 
 function requestMapResize() {
