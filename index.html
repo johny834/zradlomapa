@@ -14,6 +14,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
     <link rel="manifest" href="./site.webmanifest" />
     <meta name="theme-color" content="#f5f1eb" />
+    <meta name="zradlomapa-api" content="./api/restaurants" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Žrádlomapa" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -47,7 +48,7 @@
           <div class="hero-topline">
             <p class="eyebrow">Neoficiální přehled</p>
             <div class="hero-topline-actions">
-              <span class="hero-badge">Aktuální snapshot</span>
+              <span class="hero-badge">Live API</span>
               <button id="themeToggleBtn" class="theme-toggle-btn" type="button" aria-label="Přepnout vzhled">
                 <span id="themeToggleIcon" aria-hidden="true">☀</span>
               </button>
@@ -67,7 +68,7 @@
         </div>
         <div class="hero-stats">
           <details class="hero-info-card">
-            <summary class="hero-info-toggle" aria-label="Informace o snapshotu">
+            <summary class="hero-info-toggle" aria-label="Informace o živých datech">
               <span aria-hidden="true">i</span>
             </summary>
             <div class="hero-info-popover">
@@ -103,7 +104,7 @@
         <section class="panel search-panel">
           <div class="panel-head">
             <label class="search-label" for="query">Hledejte podle názvu, města nebo typu</label>
-            <p class="panel-subtle">Vyhledávání běží nad lokálním snapshotem, takže reaguje hned.</p>
+            <p class="panel-subtle">Data se při otevření načtou živě z API Gastromapy.</p>
           </div>
           <div class="search-row">
             <input
@@ -129,8 +130,7 @@
             </select>
           </div>
           <p class="hint">
-            Výsledky běží z lokální kopie dat. I když API zrovna stávkuje,
-            web zůstane použitelný.
+            Žádná databáze podniků se v tomto repozitáři ani na serveru trvale neukládá.
           </p>
         </section>
 

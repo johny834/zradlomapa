@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "sync": "node scripts/sync-data.mjs",
-    "backup:images": "node scripts/backup-place-images.mjs",
-    "check": "node --check app.js"
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "check": "node --check app.js && node --check server.mjs && node scripts/check-no-proprietary-data.mjs"
   }
 }

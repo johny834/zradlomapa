@@ -1,57 +1,57 @@
 # Žrádlomapa
 
-Jednoduchá statická web appka nad synchronizovaným datasetem podniků.
+Webová aplikace nad živým API Gastromapy. Repozitář záměrně neobsahuje žádné snapshoty podniků ani stažené fotografie.
 
-**Vytvořeno pouze pro edukativní účely**
+**Vytvořeno pouze pro edukativní účely. Neoficiální projekt bez spojení s Gastromapou.**
 
-## CZ
+## Architektura
 
-### Jak to funguje
+- browser načítá podniky po stránkách přes `GET /api/restaurants`
+- `server.mjs` požadavek okamžitě přepošle na `https://api.hejlik.cz/api/v1/restaurants`
+- proxy používá `Cache-Control: no-store` a data nikam nezapisuje
+- fotografie se zobrazují přímo ze vzdálených URL vrácených živým API
+- v repozitáři nejsou žádné JSON/CSV snapshoty ani lokální kopie fotografií
 
-- `scripts/sync-data.mjs` stáhne všechny podniky z `https://api.hejlik.cz/api/v1/restaurants`
-- uloží čerstvý snapshot do `data/restaurants.json`
-- před přepsáním zachová poslední funkční snapshot jako `data/restaurants-backup.json`
-- `scripts/backup-place-images.mjs` stáhne první ještě živou fotku podniku do `assets/restaurant-covers/` a připíše ji jako `localHero`
-- frontend v `index.html` + `app.js` hledá lokálně bez přímého volání API z browseru
-- loader má fallback `live dataset -> GitHub backup -> local cache`
+Proxy je nutná, protože upstream API neposílá CORS hlavičky a browser ho z jiné domény nemůže bezpečně číst přímo.
 
-### Proč nefetchovat API rovnou z frontendu
+## Lokální spuštění
 
-Protože `api.hejlik.cz` neposílá CORS hlavičky, takže browserový fetch z GitHub Pages by byl rozbitý.
-
-### Použití
+Vyžaduje Node.js 20+.
 
 ```bash
-npm run sync
-npm run backup:images
-python3 -m http.server 4173
+npm run dev
 ```
 
-Pak otevři `http://localhost:4173`.
+Potom otevři `http://127.0.0.1:4173`.
 
-## EN
+## Produkční nasazení
 
-### What it does
+Nasazení musí podporovat Node proces ze `server.mjs`, případně samostatnou serverless/edge proxy se stejnou cestou `/api/restaurants`. Samotný GitHub Pages neumí serverovou proxy; statický frontend tam lze hostovat jen tehdy, když meta tag `zradlomapa-api` v `index.html` ukazuje na nasazenou HTTPS proxy.
 
-Žrádlomapa is a static web app built on top of a synchronized restaurant dataset.
-
-- `scripts/sync-data.mjs` downloads all venues from `https://api.hejlik.cz/api/v1/restaurants`
-- it saves the fresh snapshot into `data/restaurants.json`
-- before overwriting it, the script preserves the last known good snapshot as `data/restaurants-backup.json`
-- `scripts/backup-place-images.mjs` downloads the first still-working venue photo into `assets/restaurant-covers/` and stores it as `localHero`
-- the frontend in `index.html` + `app.js` runs local search without calling the live API from the browser
-- the dataset loader uses a fallback chain: `live dataset -> GitHub backup -> local cache`
-
-### Why not fetch the API directly from the frontend
-
-Because `api.hejlik.cz` does not send CORS headers, so a browser fetch from GitHub Pages would fail.
-
-### Local usage
+Pro oddělenou proxy nastav:
 
 ```bash
-npm run sync
-npm run backup:images
-python3 -m http.server 4173
+ALLOWED_ORIGIN=https://johny834.github.io npm start
 ```
 
-Then open `http://localhost:4173`.
+Pak změň `content` meta tagu `zradlomapa-api` na veřejnou URL proxy.
+
+## Ochrana proti návratu snapshotů
+
+```bash
+npm run check
+```
+
+Kontrola selže, pokud někdo začne verzovat:
+
+- `data/`
+- `assets/restaurant-covers/`
+- `restaurants.json` nebo `restaurants-backup.json`
+- soubor větší než 2 MB
+- staré odkazy na snapshotovací skripty
+
+Stejná kontrola běží v GitHub Actions při každém pushi a pull requestu.
+
+## Data policy
+
+Repozitář smí obsahovat pouze zdrojový kód a vlastní statické assety aplikace. Odpovědi Gastromapa API jsou pouze tranzitní data aktuálního HTTP požadavku a nesmí se commitovat, ukládat do cache, Actions artifacts ani dlouhodobě logovat.

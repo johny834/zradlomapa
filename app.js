@@ -35,11 +35,9 @@ const THEME_COLORS = {
   light: "#f5f1eb",
   dark: "#11141b"
 };
-const DATASET_SOURCES = [
-  { url: "./data/restaurants.json", label: "aktuální snapshot" },
-  { url: "./data/restaurants-backup.json", label: "GitHub záloha" }
-];
-const DATASET_CACHE_KEY = "zradlomapa:last-good-snapshot";
+const LIVE_API_ENDPOINT = document.querySelector('meta[name="zradlomapa-api"]')?.content || "./api/restaurants";
+const API_PAGE_SIZE = 100;
+const API_MAX_PAGES = 100;
 const emojiByTagType = {
   brewery: "🍺",
   beer: "🍺",
@@ -75,11 +73,11 @@ boot();
 
 async function boot() {
   try {
-    const { payload, sourceLabel, fromCache } = await loadDatasetWithFallback();
-    dataset = payload.restaurants.map(enrichRestaurant);
+    const restaurants = await loadRestaurantsLive();
+    dataset = restaurants.map(enrichRestaurant);
 
-    syncTimeNode.textContent = formatSyncLabel(payload.syncedAt, sourceLabel, fromCache);
-    recordCountNode.textContent = payload.total.toLocaleString("cs-CZ");
+    syncTimeNode.textContent = `${new Date().toLocaleString("cs-CZ")} · live API`;
+    recordCountNode.textContent = dataset.length.toLocaleString("cs-CZ");
 
     hydrateTagFilter(dataset);
     wireEvents();
@@ -88,82 +86,47 @@ async function boot() {
     restoreSelectionFromHash();
     runSearch();
   } catch (error) {
+    console.error(error);
     syncTimeNode.textContent = "Chyba";
     resultsNode.innerHTML =
-      '<div class="empty-state">Nepodařilo se načíst data. Obnovte stránku nebo spusťte synchronizaci znovu.</div>';
+      '<div class="empty-state">Nepodařilo se načíst živá data. Zkuste stránku obnovit později.</div>';
     detailNode.innerHTML =
-      '<div class="empty-state">Detail zatím není k dispozici, protože se nepodařilo načíst podklady.</div>';
+      '<div class="empty-state">Detail není k dispozici, protože živé API neodpovědělo.</div>';
   }
 }
 
-async function loadDatasetWithFallback() {
-  const failures = [];
+async function loadRestaurantsLive() {
+  const restaurants = [];
 
-  for (const source of DATASET_SOURCES) {
-    try {
-      const response = await fetch(source.url, { cache: "no-store" });
+  for (let page = 0; page < API_MAX_PAGES; page += 1) {
+    const offset = page * API_PAGE_SIZE;
+    const url = new URL(LIVE_API_ENDPOINT, window.location.href);
+    url.searchParams.set("limit", String(API_PAGE_SIZE));
+    url.searchParams.set("offset", String(offset));
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+    syncTimeNode.textContent = `Načítám živá data… ${restaurants.length.toLocaleString("cs-CZ")}`;
 
-      const payload = await response.json();
-      assertValidPayload(payload, source.label);
-      rememberPayload(payload);
-      return { payload, sourceLabel: source.label, fromCache: false };
-    } catch (error) {
-      failures.push(`${source.label}: ${error.message}`);
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: { accept: "application/json" }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Live API selhalo na offsetu ${offset}: HTTP ${response.status}`);
+    }
+
+    const payload = await response.json();
+    if (!payload || !Array.isArray(payload.data)) {
+      throw new Error(`Live API vrátilo neplatný formát na offsetu ${offset}`);
+    }
+
+    restaurants.push(...payload.data);
+    if (payload.data.length < API_PAGE_SIZE) {
+      return restaurants;
     }
   }
 
-  const cachedPayload = readCachedPayload();
-  if (cachedPayload) {
-    return { payload: cachedPayload, sourceLabel: "místní záloha", fromCache: true };
-  }
-
-  throw new Error(failures.join(" | "));
-}
-
-function assertValidPayload(payload, label) {
-  if (!payload || !Array.isArray(payload.restaurants)) {
-    throw new Error(`${label} má neplatný formát`);
-  }
-}
-
-function rememberPayload(payload) {
-  try {
-    window.localStorage.setItem(DATASET_CACHE_KEY, JSON.stringify(payload));
-  } catch {
-    // Ignore storage failures; remote backup is still the primary safeguard.
-  }
-}
-
-function readCachedPayload() {
-  try {
-    const raw = window.localStorage.getItem(DATASET_CACHE_KEY);
-    if (!raw) {
-      return null;
-    }
-
-    const payload = JSON.parse(raw);
-    assertValidPayload(payload, "místní záloha");
-    return payload;
-  } catch {
-    return null;
-  }
-}
-
-function formatSyncLabel(syncedAt, sourceLabel, fromCache) {
-  const timeLabel = new Date(syncedAt).toLocaleString("cs-CZ");
-  if (fromCache) {
-    return `${timeLabel} · místní záloha`;
-  }
-
-  if (sourceLabel !== "aktuální snapshot") {
-    return `${timeLabel} · ${sourceLabel}`;
-  }
-
-  return timeLabel;
+  throw new Error(`Live API překročilo bezpečnostní limit ${API_MAX_PAGES} stránek`);
 }
 
 function wireEvents() {
@@ -534,7 +497,7 @@ function paintDetail(item) {
 
 function renderGallery(item, activeImage) {
   if (!activeImage) {
-    return '<div class="detail-gallery detail-gallery-empty">U tohoto podniku zatím ve snapshotu nejsou žádné fotografie.</div>';
+    return '<div class="detail-gallery detail-gallery-empty">U tohoto podniku živé API nevrátilo žádné fotografie.</div>';
   }
 
   return `
@@ -561,12 +524,6 @@ function wireGallery(item) {
     heroImage.addEventListener(
       "error",
       () => {
-        if (selectedImageIndex !== 0 && item.localHero) {
-          selectedImageIndex = 0;
-          paintDetail(item);
-          return;
-        }
-
         const fallback = images.findIndex((image, index) => index !== selectedImageIndex && getImageThumbSrc(image));
         if (fallback > -1 && fallback !== selectedImageIndex) {
           selectedImageIndex = fallback;
@@ -653,13 +610,7 @@ function enrichRestaurant(item) {
 }
 
 function getGalleryImages(item) {
-  const images = item.images || [];
-
-  if (!item.localHero) {
-    return images;
-  }
-
-  return [{ thumb800: item.localHero, original: item.localHero, isLocalHero: true }, ...images];
+  return item.images || [];
 }
 
 function getImageThumbSrc(image) {

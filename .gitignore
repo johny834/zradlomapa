@@ -1,0 +1,8 @@
+data/
+assets/restaurant-covers/
+restaurants.json
+restaurants-backup.json
+*.restaurant-data.json
+
+.DS_Store
+node_modules/
