@@ -56,3 +56,19 @@ Stejná kontrola běží v GitHub Actions při každém pushi a pull requestu.
 ## Data policy
 
 Repozitář smí obsahovat pouze zdrojový kód a vlastní statické assety aplikace. Odpovědi Gastromapa API jsou pouze tranzitní data aktuálního HTTP požadavku a nesmí se commitovat, ukládat do cache, Actions artifacts ani dlouhodobě logovat.
+
+## Rozhraní (mobile-first)
+
+- Jedno hledání a typ podniku; seznam a mapa sdílejí stejné filtry.
+- Hledání ignoruje diakritiku. Seznam vykresluje 24 položek, další jsou dostupné tlačítkem.
+- Detail nabízí fotografie z API, kontakty, navigaci a otevírací dobu, pokud je zdroj poskytuje.
+- Nulové výsledky znamenají prázdnou mapu, nikoli přepnutí na všechny podniky.
+- Poloha se zjišťuje pouze po stisku „Moje poloha“; není nutná pro hledání.
+- Rozhraní funguje během načítání; po výpadku je dostupné opakování bez obnovení stránky.
+- `api.js` odděluje živé HTTP požadavky od UI, používá timeout, omezené opakování a `no-store`.
+- Na localhost se používá vlastní Node proxy, na Pages konfigurovaný CORS bridge s `X-No-Cache`.
+- Žádné restaurační odpovědi ani fotografie se neukládají do localStorage, service workeru či repozitáře. Ukládá se pouze preference vzhledu.
+
+### Ověření změn
+
+Vedle `npm run check` ověřte v prohlížeči s živým API šířky 320, 390, 768 a 1440 px; hledání bez diakritiky; další výsledky; prázdnou a filtrovanou mapu; detail a navigaci; přímý odkaz na podnik mimo výchozí město; Escape a návrat fokusu; tmavý vzhled; výpadek s opakováním. Pro GitHub Pages ověřte také živou cestu přes CORS bridge. Testovací data ani fotografie neukládejte do repozitáře.

@@ -20,12 +20,15 @@ const MIME_TYPES = {
   ".png": "image/png",
   ".svg": "image/svg+xml",
   ".webmanifest": "application/manifest+json; charset=utf-8",
-  ".webp": "image/webp"
+  ".webp": "image/webp",
 };
 
 const server = createServer(async (request, response) => {
   try {
-    const requestUrl = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`);
+    const requestUrl = new URL(
+      request.url || "/",
+      `http://${request.headers.host || "localhost"}`,
+    );
 
     if (requestUrl.pathname === "/api/restaurants") {
       await proxyRestaurants(request, response, requestUrl);
@@ -56,10 +59,20 @@ async function proxyRestaurants(request, response, requestUrl) {
     return;
   }
 
-  const limit = parseInteger(requestUrl.searchParams.get("limit"), MAX_PAGE_SIZE);
+  const limit = parseInteger(
+    requestUrl.searchParams.get("limit"),
+    MAX_PAGE_SIZE,
+  );
   const offset = parseInteger(requestUrl.searchParams.get("offset"), 0);
 
-  if (limit < 1 || limit > MAX_PAGE_SIZE || offset < 0 || offset > 10000) {
+  if (
+    !Number.isInteger(limit) ||
+    !Number.isInteger(offset) ||
+    limit < 1 ||
+    limit > MAX_PAGE_SIZE ||
+    offset < 0 ||
+    offset > 10000
+  ) {
     sendJson(response, 400, { error: "Invalid pagination" });
     return;
   }
@@ -71,17 +84,18 @@ async function proxyRestaurants(request, response, requestUrl) {
   const upstream = await fetch(upstreamUrl, {
     headers: {
       accept: "application/json",
-      "user-agent": "zradlomapa-live-proxy/1.0"
+      "user-agent": "zradlomapa-live-proxy/1.0",
     },
-    signal: AbortSignal.timeout(15000)
+    signal: AbortSignal.timeout(15000),
   });
 
   const body = Buffer.from(await upstream.arrayBuffer());
   setCorsHeaders(request, response);
   response.writeHead(upstream.status, {
     "cache-control": "no-store, max-age=0",
-    "content-type": upstream.headers.get("content-type") || "application/json; charset=utf-8",
-    "x-content-type-options": "nosniff"
+    "content-type":
+      upstream.headers.get("content-type") || "application/json; charset=utf-8",
+    "x-content-type-options": "nosniff",
   });
   response.end(body);
 }
@@ -93,13 +107,24 @@ async function serveStatic(request, response, requestUrl) {
     return;
   }
 
-  const pathname = requestUrl.pathname === "/" ? "/index.html" : decodeURIComponent(requestUrl.pathname);
+  const pathname =
+    requestUrl.pathname === "/"
+      ? "/index.html"
+      : decodeURIComponent(requestUrl.pathname);
   const normalizedPath = normalize(pathname).replace(/^([/\\])+/, "");
   const filePath = resolve(join(ROOT, normalizedPath));
-  const blockedPrefixes = [`.git${sep}`, `.github${sep}`, `data${sep}`, `scripts${sep}`];
+  const blockedPrefixes = [
+    `.git${sep}`,
+    `.github${sep}`,
+    `data${sep}`,
+    `scripts${sep}`,
+  ];
   const relativePath = filePath.slice(ROOT.length);
 
-  if (!filePath.startsWith(ROOT) || blockedPrefixes.some((prefix) => relativePath.startsWith(prefix))) {
+  if (
+    !filePath.startsWith(ROOT) ||
+    blockedPrefixes.some((prefix) => relativePath.startsWith(prefix))
+  ) {
     response.writeHead(404);
     response.end();
     return;
@@ -123,8 +148,9 @@ async function serveStatic(request, response, requestUrl) {
   response.writeHead(200, {
     "cache-control": "no-cache",
     "content-length": fileStats.size,
-    "content-type": MIME_TYPES[extname(filePath).toLowerCase()] || "application/octet-stream",
-    "x-content-type-options": "nosniff"
+    "content-type":
+      MIME_TYPES[extname(filePath).toLowerCase()] || "application/octet-stream",
+    "x-content-type-options": "nosniff",
   });
 
   if (request.method === "HEAD") {
@@ -160,7 +186,7 @@ function sendJson(response, status, payload) {
   response.writeHead(status, {
     "cache-control": "no-store, max-age=0",
     "content-type": "application/json; charset=utf-8",
-    "x-content-type-options": "nosniff"
+    "x-content-type-options": "nosniff",
   });
   response.end(JSON.stringify(payload));
 }
