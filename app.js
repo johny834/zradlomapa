@@ -730,7 +730,7 @@ function initMapIfNeeded() {
 
   map = window.L.map(mapCanvasNode, {
     zoomControl: true,
-    minZoom: 6,
+    minZoom: 2,
   }).setView(defaultMapCenter, defaultMapZoom);
 
   // OpenFreeMap's public vector tiles require no registration or API key.
@@ -958,7 +958,22 @@ function fitMapToBounds(instance, bounds, maxZoom = 13) {
   }
 
   if (bounds.length) {
-    instance.fitBounds(bounds, {
+    // A few upstream coordinates are thousands of km from the matching city.
+    // Frame the dominant cluster without deleting any markers or changing data.
+    let viewportBounds = bounds;
+    if (bounds.length >= 5) {
+      const median = (values) =>
+        values.sort((a, b) => a - b)[Math.floor(values.length / 2)];
+      const center = [
+        median(bounds.map((point) => point[0])),
+        median(bounds.map((point) => point[1])),
+      ];
+      const cluster = bounds.filter(
+        (point) => haversineKm(...center, ...point) <= 500,
+      );
+      if (cluster.length >= bounds.length * 0.8) viewportBounds = cluster;
+    }
+    instance.fitBounds(viewportBounds, {
       padding: [40, 40],
       maxZoom,
     });
