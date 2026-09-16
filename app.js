@@ -1,3 +1,4 @@
+import { loadRestaurantsLive } from "./api.js";
 const queryInput = document.querySelector("#query");
 const tagFilter = document.querySelector("#tagFilter");
 const clearBtn = document.querySelector("#clearBtn");
@@ -5,7 +6,6 @@ const quickFilterChips = [...document.querySelectorAll(".quick-filter-chip")];
 const themeToggleBtn = document.querySelector("#themeToggleBtn");
 const themeToggleIcon = document.querySelector("#themeToggleIcon");
 const openMapBtn = document.querySelector("#openMapBtn");
-const openMapPreviewBtn = document.querySelector("#openMapPreviewBtn");
 const closeMapBtn = document.querySelector("#closeMapBtn");
 const locateUserBtn = document.querySelector("#locateUserBtn");
 const mapOverlayNode = document.querySelector("#mapOverlay");
@@ -30,16 +30,16 @@ const dayNames = ["", "Po", "Ut", "St", "Ct", "Pa", "So", "Ne"];
 const defaultMapCenter = [49.8175, 15.473];
 const defaultMapZoom = 7;
 const THEME_CACHE_KEY = "zradlomapa:theme";
-const RESULTS_RENDER_LIMIT = 120;
+const RESULTS_PAGE_SIZE = 24;
+let renderLimit = RESULTS_PAGE_SIZE;
+let returnFocus = null;
+let loading = false;
+const loadMoreBtn = document.querySelector("#loadMoreBtn");
+const retryBtn = document.querySelector("#retryBtn");
 const THEME_COLORS = {
-  light: "#f5f1eb",
-  dark: "#11141b"
+  light: "#f8f6f1",
+  dark: "#171b17",
 };
-const LIVE_API_ENDPOINT = document.querySelector('meta[name="zradlomapa-api"]')?.content || "./api/restaurants";
-const API_PAGE_SIZE = LIVE_API_ENDPOINT.includes("r.jina.ai") ? 1000 : 100;
-const API_MAX_PAGES = 100;
-const API_BATCH_SIZE = LIVE_API_ENDPOINT.includes("r.jina.ai") ? 3 : 1;
-const API_MAX_RETRIES = 2;
 const emojiByTagType = {
   brewery: "🍺",
   beer: "🍺",
@@ -57,7 +57,7 @@ const emojiByTagType = {
   dessert: "🍰",
   accommodation: "🛏️",
   shop: "🛍️",
-  store: "🛍️"
+  store: "🛍️",
 };
 
 let dataset = [];
@@ -75,114 +75,53 @@ if (!window.location.hash && !queryInput.value) {
   queryInput.value = quickFilterChips[0]?.dataset.query || "Praha";
 }
 
+wireEvents();
+applyTheme(getStoredTheme());
 boot();
 
 async function boot() {
+  if (loading) return;
+  loading = true;
+  retryBtn.hidden = true;
+  resultsNode.setAttribute("aria-busy", "true");
+  syncTimeNode.textContent = "Načítám podniky…";
   try {
-    const restaurants = await loadRestaurantsLive();
+    const restaurants = await loadRestaurantsLive((count) => {
+      syncTimeNode.textContent = `Načítám podniky… ${count}`;
+    });
     dataset = restaurants.map(enrichRestaurant);
 
-    syncTimeNode.textContent = `${new Date().toLocaleString("cs-CZ")} · live API`;
+    syncTimeNode.textContent = `Aktualizováno v ${new Date().toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}`;
     recordCountNode.textContent = dataset.length.toLocaleString("cs-CZ");
 
     hydrateTagFilter(dataset);
-    wireEvents();
     applyTheme(getStoredTheme());
     syncMapControlsFromMain();
     restoreSelectionFromHash();
     runSearch();
   } catch (error) {
     console.error(error);
-    syncTimeNode.textContent = "Chyba";
+    syncTimeNode.textContent = "Podniky se nepodařilo načíst.";
+    resultMetaNode.textContent = "Nedostupné připojení";
+    retryBtn.hidden = false;
     resultsNode.innerHTML =
       '<div class="empty-state">Nepodařilo se načíst živá data. Zkuste stránku obnovit později.</div>';
     detailNode.innerHTML =
       '<div class="empty-state">Detail není k dispozici, protože živé API neodpovědělo.</div>';
+  } finally {
+    loading = false;
+    resultsNode.setAttribute("aria-busy", "false");
   }
-}
-
-async function loadRestaurantsLive() {
-  const restaurants = [];
-
-  for (let page = 0; page < API_MAX_PAGES; page += API_BATCH_SIZE) {
-    syncTimeNode.textContent = `Načítám živá data… ${restaurants.length.toLocaleString("cs-CZ")}`;
-
-    const pages = await Promise.all(
-      Array.from({ length: API_BATCH_SIZE }, (_, batchIndex) => {
-        const offset = (page + batchIndex) * API_PAGE_SIZE;
-        return loadApiPage(offset);
-      })
-    );
-
-    for (const pageData of pages) {
-      restaurants.push(...pageData);
-      if (pageData.length < API_PAGE_SIZE) {
-        return restaurants;
-      }
-    }
-  }
-
-  throw new Error(`Live API překročilo bezpečnostní limit ${API_MAX_PAGES} stránek`);
-}
-
-async function loadApiPage(offset) {
-  let lastError;
-
-  for (let attempt = 0; attempt <= API_MAX_RETRIES; attempt += 1) {
-    const url = new URL(LIVE_API_ENDPOINT, window.location.href);
-    url.searchParams.set("limit", String(API_PAGE_SIZE));
-    url.searchParams.set("offset", String(offset));
-
-    if (url.hostname === "r.jina.ai") {
-      url.searchParams.set("_live", String(Date.now()));
-    }
-
-    try {
-      const response = await fetch(url, {
-        cache: "no-store",
-        headers: { accept: "application/json, text/plain" }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const payload = await parseApiPayload(response, url.hostname === "r.jina.ai");
-      if (!payload || !Array.isArray(payload.data)) {
-        throw new Error("neplatný formát odpovědi");
-      }
-
-      return payload.data;
-    } catch (error) {
-      lastError = error;
-      if (attempt < API_MAX_RETRIES) {
-        await wait(500 * 2 ** attempt);
-      }
-    }
-  }
-
-  throw new Error(`Live API selhalo na offsetu ${offset}: ${lastError?.message || "neznámá chyba"}`);
-}
-
-async function parseApiPayload(response, wrappedByJina) {
-  if (!wrappedByJina) {
-    return response.json();
-  }
-
-  const text = await response.text();
-  const jsonStart = text.indexOf('{"data":');
-  if (jsonStart === -1) {
-    throw new Error("CORS bridge nevrátil JSON z Gastromapy");
-  }
-
-  return JSON.parse(text.slice(jsonStart).trim());
-}
-
-function wait(milliseconds) {
-  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
 function wireEvents() {
+  retryBtn.addEventListener("click", boot);
+  loadMoreBtn.addEventListener("click", () => {
+    const previous = renderLimit;
+    renderLimit += RESULTS_PAGE_SIZE;
+    paintResults();
+    resultsNode.querySelectorAll(".result-hit")[previous]?.focus();
+  });
   queryInput.addEventListener("input", () => {
     syncMapControlsFromMain();
     runSearch();
@@ -203,12 +142,13 @@ function wireEvents() {
   quickFilterChips.forEach((chip) => {
     chip.addEventListener("click", () => {
       const nextQuery = chip.dataset.query || "";
-      queryInput.value = queryInput.value.trim().toLowerCase() === nextQuery.toLowerCase() ? "" : nextQuery;
+      queryInput.value =
+        queryInput.value.trim().toLowerCase() === nextQuery.toLowerCase()
+          ? ""
+          : nextQuery;
       syncMapControlsFromMain();
       runSearch();
-      scrollToFirstResult();
-      queryInput.focus();
-      queryInput.setSelectionRange(queryInput.value.length, queryInput.value.length);
+      queryInput.blur();
     });
   });
 
@@ -231,7 +171,7 @@ function wireEvents() {
   });
 
   openMapBtn.addEventListener("click", openMap);
-  openMapPreviewBtn.addEventListener("click", openMap);
+
   closeMapBtn.addEventListener("click", closeMap);
   locateUserBtn.addEventListener("click", () => focusUserLocation(true));
   mapOverlayNode.addEventListener("click", (event) => {
@@ -252,6 +192,29 @@ function wireEvents() {
   });
 
   window.addEventListener("keydown", (event) => {
+    if (event.key === "Tab") {
+      const overlay = !detailOverlayNode.hidden
+        ? detailOverlayNode
+        : !mapOverlayNode.hidden
+          ? mapOverlayNode
+          : null;
+      if (overlay) {
+        const nodes = [
+          ...overlay.querySelectorAll(
+            'button, a[href], input, select, [tabindex="0"]',
+          ),
+        ].filter((node) => !node.disabled && node.getClientRects().length);
+        const first = nodes[0],
+          last = nodes.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    }
     if (event.key === "Escape") {
       if (!mapOverlayNode.hidden) {
         closeMap();
@@ -267,7 +230,11 @@ function wireEvents() {
 
 function getStoredTheme() {
   try {
-    return window.localStorage.getItem(THEME_CACHE_KEY) || document.documentElement.dataset.theme || "light";
+    return (
+      window.localStorage.getItem(THEME_CACHE_KEY) ||
+      document.documentElement.dataset.theme ||
+      "light"
+    );
   } catch {
     return document.documentElement.dataset.theme || "light";
   }
@@ -290,12 +257,21 @@ function applyTheme(theme) {
   }
 
   if (themeToggleBtn) {
-    themeToggleBtn.setAttribute("aria-label", theme === "light" ? "Přepnout na dark mode" : "Přepnout na light mode");
-    themeToggleBtn.setAttribute("title", theme === "light" ? "Přepnout na dark mode" : "Přepnout na light mode");
+    themeToggleBtn.setAttribute(
+      "aria-label",
+      theme === "light" ? "Přepnout na dark mode" : "Přepnout na light mode",
+    );
+    themeToggleBtn.setAttribute(
+      "title",
+      theme === "light" ? "Přepnout na dark mode" : "Přepnout na light mode",
+    );
   }
 
   if (themeColorMeta) {
-    themeColorMeta.setAttribute("content", THEME_COLORS[theme] || THEME_COLORS.light);
+    themeColorMeta.setAttribute(
+      "content",
+      THEME_COLORS[theme] || THEME_COLORS.light,
+    );
   }
 
   syncMapTheme();
@@ -333,29 +309,32 @@ function syncMapControlsFromMain() {
 }
 
 function runSearch() {
-  const query = queryInput.value.trim().toLowerCase();
+  renderLimit = RESULTS_PAGE_SIZE;
+  const query = normalizeText(queryInput.value.trim());
   const activeTag = tagFilter.value;
 
   filtered = dataset
     .map((item) => ({ item, score: scoreItem(item, query) }))
     .filter(({ item, score }) => {
-      const tagMatches = !activeTag || item.tags.some((tag) => tag.name === activeTag);
+      const tagMatches =
+        !activeTag || item.tags.some((tag) => tag.name === activeTag);
       const queryMatches = !query || score > 0;
       return tagMatches && queryMatches;
     })
-    .sort((left, right) => right.score - left.score || left.item.name.localeCompare(right.item.name, "cs"));
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        left.item.name.localeCompare(right.item.name, "cs"),
+    );
 
-  resultMetaNode.textContent =
-    filtered.length > RESULTS_RENDER_LIMIT
-      ? `${filtered.length} výsledků · v seznamu prvních ${RESULTS_RENDER_LIMIT}`
-      : `${filtered.length} výsledků`;
+  resultMetaNode.textContent = `${filtered.length} podniků`;
   paintQuickFilters();
   syncSelection();
   paintResults();
   refreshMapMarkers();
 
   if (selectedRestaurantId) {
-    const current = filtered.find(({ item }) => item.id === selectedRestaurantId)?.item;
+    const current = dataset.find((item) => item.id === selectedRestaurantId);
     if (current) {
       paintDetail(current);
       openDetail();
@@ -376,28 +355,16 @@ function paintQuickFilters() {
   });
 }
 
-function scrollToFirstResult() {
-  const firstResult = resultsNode.querySelector(".result-card");
-
-  if (!firstResult) {
-    return;
-  }
-
-  requestAnimationFrame(() => {
-    firstResult.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
+function syncSelection() {
+  if (!dataset.some((item) => item.id === selectedRestaurantId))
+    selectedRestaurantId = null;
 }
 
-function syncSelection() {
-  const visibleIds = new Set(filtered.map(({ item }) => item.id));
-
-  if (selectedRestaurantId && visibleIds.has(selectedRestaurantId)) {
-    return;
-  }
-
-  if (window.location.hash) {
-    selectedRestaurantId = null;
-  }
+function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 function scoreItem(item, query) {
@@ -417,6 +384,7 @@ function scoreItem(item, query) {
 
 function paintResults() {
   resultsNode.innerHTML = "";
+  loadMoreBtn.hidden = filtered.length <= renderLimit;
 
   if (!filtered.length) {
     resultsNode.innerHTML =
@@ -427,9 +395,11 @@ function paintResults() {
   for (const { item, score } of getRenderableResults()) {
     const fragment = resultTemplate.content.cloneNode(true);
     const button = fragment.querySelector(".result-hit");
+    button.dataset.restaurantId = String(item.id);
     const address = fragment.querySelector(".result-address");
 
-    fragment.querySelector("h3").textContent = `${pickEmoji(item)} ${item.name}`;
+    fragment.querySelector("h3").textContent =
+      `${pickEmoji(item)} ${item.name}`;
     address.textContent = item.address;
     fragment.querySelector(".score-badge").textContent =
       item.mainTag?.name || (queryInput.value.trim() ? "Shoda" : "Výběr");
@@ -437,18 +407,6 @@ function paintResults() {
     if (item.id === selectedRestaurantId) {
       button.classList.add("is-active");
       button.setAttribute("aria-current", "true");
-    }
-
-    if (item.images?.length) {
-      address.insertAdjacentHTML(
-        "afterend",
-        `<p class="result-meta">${item.images.length} fotografií · ${escapeHtml(item.city || "Neznámé místo")}</p>`
-      );
-    } else {
-      address.insertAdjacentHTML(
-        "afterend",
-        `<p class="result-meta">${escapeHtml(item.city || "Neznámé místo")}</p>`
-      );
     }
 
     const tagRow = fragment.querySelector(".tag-row");
@@ -465,23 +423,27 @@ function paintResults() {
 }
 
 function getRenderableResults() {
-  const visible = filtered.slice(0, RESULTS_RENDER_LIMIT);
+  const visible = filtered.slice(0, renderLimit);
 
   if (!selectedRestaurantId) {
     return visible;
   }
 
-  const alreadyVisible = visible.some(({ item }) => item.id === selectedRestaurantId);
+  const alreadyVisible = visible.some(
+    ({ item }) => item.id === selectedRestaurantId,
+  );
   if (alreadyVisible) {
     return visible;
   }
 
-  const selectedEntry = filtered.find(({ item }) => item.id === selectedRestaurantId);
+  const selectedEntry = filtered.find(
+    ({ item }) => item.id === selectedRestaurantId,
+  );
   if (!selectedEntry) {
     return visible;
   }
 
-  return [...visible.slice(0, Math.max(RESULTS_RENDER_LIMIT - 1, 0)), selectedEntry];
+  return [...visible.slice(0, Math.max(renderLimit - 1, 0)), selectedEntry];
 }
 
 function selectRestaurant(restaurantId) {
@@ -502,7 +464,10 @@ function selectRestaurant(restaurantId) {
 function paintDetail(item) {
   const images = getGalleryImages(item);
   const remoteImageCount = item.images?.length || 0;
-  const safeIndex = Math.min(selectedImageIndex, Math.max(images.length - 1, 0));
+  const safeIndex = Math.min(
+    selectedImageIndex,
+    Math.max(images.length - 1, 0),
+  );
   const activeImage = images[safeIndex];
   selectedImageIndex = safeIndex;
   detailDrawerTitle.textContent = `${pickEmoji(item)} ${item.name}`;
@@ -529,15 +494,11 @@ function paintDetail(item) {
         ${item.restaurantFacebookUrl ? `<a href="${escapeAttribute(item.restaurantFacebookUrl)}" target="_blank" rel="noreferrer">Facebook</a>` : ""}
         ${item.facebookPostUrl ? `<a href="${escapeAttribute(item.facebookPostUrl)}" target="_blank" rel="noreferrer">Příspěvek</a>` : ""}
         ${item.phone ? `<a href="tel:${escapeAttribute(item.phone)}">${escapeHtml(item.phone)}</a>` : ""}
-        <a href="https://www.google.com/maps?q=${item.coordinates.latitude},${item.coordinates.longitude}" target="_blank" rel="noreferrer">Google Mapy</a>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(Number.isFinite(item.coordinates.latitude) && Number.isFinite(item.coordinates.longitude) ? `${item.coordinates.latitude},${item.coordinates.longitude}` : `${item.name} ${item.address}`)}" target="_blank" rel="noreferrer">Navigovat ↗</a>
       </div>
       <div class="detail-description">
         ${renderDescription(item.description)}
       </div>
-      <section class="detail-section">
-        <h3>Identifikace místa</h3>
-        <div class="hint">${escapeHtml(item.slug)} · ${item.id}</div>
-      </section>
       <section class="detail-section">
         <h3>Otevírací doba</h3>
         ${renderOpeningHours(item.openingTimes)}
@@ -577,16 +538,11 @@ function wireGallery(item) {
     heroImage.addEventListener(
       "error",
       () => {
-        const fallback = images.findIndex((image, index) => index !== selectedImageIndex && getImageThumbSrc(image));
-        if (fallback > -1 && fallback !== selectedImageIndex) {
-          selectedImageIndex = fallback;
-          paintDetail(item);
-          return;
-        }
-
-        detailNode.querySelector(".detail-gallery")?.classList.add("detail-gallery-empty");
+        const gallery = detailNode.querySelector(".detail-gallery");
+        gallery.classList.add("detail-gallery-empty");
+        gallery.textContent = "Fotografie není dostupná.";
       },
-      { once: true }
+      { once: true },
     );
   }
 
@@ -635,8 +591,10 @@ function renderOpeningHours(openingTimes) {
 
   const rows = openingTimes
     .map((entry) => {
-      const slots = entry.times.map((slot) => `${slot.from}-${slot.to}`).join(", ");
-      return `<li>${dayNames[entry.day] || entry.day}: ${slots}</li>`;
+      const slots = (entry.times || [])
+        .map((slot) => `${escapeHtml(slot.from)}–${escapeHtml(slot.to)}`)
+        .join(", ");
+      return `<li>${dayNames[entry.day] || escapeHtml(entry.day)}: ${slots}</li>`;
     })
     .join("");
 
@@ -652,14 +610,26 @@ function enrichRestaurant(item) {
     city,
     images: item.images || [],
     tags: item.tags || [],
-    coordinates: item.coordinates || { latitude: 50.0755, longitude: 14.4378 },
-    nameLc: item.name.toLowerCase(),
-    addressLc: address.toLowerCase(),
-    cityLc: city.toLowerCase(),
-    descriptionLc: (item.description || "").toLowerCase(),
-    slugLc: (item.slug || "").toLowerCase(),
-    tagsLc: (item.tags || []).map((tag) => tag.name.toLowerCase())
+    coordinates: item.coordinates || { latitude: null, longitude: null },
+    website: safeUrl(item.website),
+    restaurantFacebookUrl: safeUrl(item.restaurantFacebookUrl),
+    facebookPostUrl: safeUrl(item.facebookPostUrl),
+    nameLc: normalizeText(item.name),
+    addressLc: normalizeText(address),
+    cityLc: normalizeText(city),
+    descriptionLc: normalizeText(item.description || ""),
+    slugLc: normalizeText(item.slug || ""),
+    tagsLc: (item.tags || []).map((tag) => normalizeText(tag.name)),
   };
+}
+
+function safeUrl(value) {
+  try {
+    const url = new URL(value);
+    return ["https:", "http:"].includes(url.protocol) ? url.href : "";
+  } catch {
+    return "";
+  }
 }
 
 function getGalleryImages(item) {
@@ -667,65 +637,92 @@ function getGalleryImages(item) {
 }
 
 function getImageThumbSrc(image) {
-  return image.thumb800 || image.original || "";
+  return safeUrl(image.thumb800) || safeUrl(image.original);
 }
 
 function getImageOriginalSrc(image) {
-  return image.original || image.thumb800 || "";
+  return safeUrl(image.original) || safeUrl(image.thumb800);
 }
 
 function restoreSelectionFromHash() {
-  const token = decodeURIComponent(window.location.hash.replace(/^#/, "").trim());
+  let token;
+  try {
+    token = decodeURIComponent(window.location.hash.slice(1).trim());
+  } catch {
+    return;
+  }
 
   if (!token) {
     selectedRestaurantId = null;
     return;
   }
 
-  const match = dataset.find((item) => item.slug === token || String(item.id) === token);
+  const match = dataset.find(
+    (item) => item.slug === token || String(item.id) === token,
+  );
   selectedRestaurantId = match?.id ?? null;
 }
 
 function updateHash(item) {
   const nextHash = item ? `#${encodeURIComponent(item.slug || item.id)}` : "";
   if (window.location.hash !== nextHash) {
-    history.replaceState(null, "", nextHash || window.location.pathname + window.location.search);
+    history.replaceState(
+      null,
+      "",
+      nextHash || window.location.pathname + window.location.search,
+    );
   }
 }
 
 function openDetail() {
+  if (detailOverlayNode.hidden) returnFocus = document.activeElement;
   document.body.classList.remove("map-open");
   mapOverlayNode.hidden = true;
   document.body.classList.add("detail-open");
   detailOverlayNode.hidden = false;
+  detailCloseBtn.focus();
 }
 
 function closeDetail(options = {}) {
+  const wasOpen = !detailOverlayNode.hidden;
   document.body.classList.remove("detail-open");
   detailOverlayNode.hidden = true;
+  const previousId = selectedRestaurantId;
 
   if (options.clearHash !== false) {
     selectedRestaurantId = null;
     updateHash(null);
     paintResults();
   }
+  if (wasOpen) {
+    const result = [...resultsNode.querySelectorAll(".result-hit")].find(
+      (node) => node.dataset.restaurantId === String(previousId),
+    );
+    (returnFocus?.isConnected ? returnFocus : result || queryInput).focus();
+  }
 }
 
 function openMap() {
+  selectedRestaurantId = null;
+  updateHash(null);
   document.body.classList.remove("detail-open");
   detailOverlayNode.hidden = true;
   document.body.classList.add("map-open");
   mapOverlayNode.hidden = false;
   syncMapControlsFromMain();
   initMapIfNeeded();
+  if (!map)
+    mapMetaNode.textContent =
+      "Mapu se nepodařilo načíst. Použijte seznam nebo obnovte stránku.";
   refreshMapMarkers();
   requestMapResize();
-  focusUserLocation(false);
+  closeMapBtn.focus();
 }
 
 function closeMap() {
   document.body.classList.remove("map-open");
   mapOverlayNode.hidden = true;
+  openMapBtn.focus();
 }
 
 function initMapIfNeeded() {
@@ -735,12 +732,12 @@ function initMapIfNeeded() {
 
   map = window.L.map(mapCanvasNode, {
     zoomControl: true,
-    minZoom: 6
+    minZoom: 6,
   }).setView(defaultMapCenter, defaultMapZoom);
 
   mapTileLayer = window.L.tileLayer(getMapTileUrl(), {
     attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
   }).addTo(map);
 
   mapLayerGroup = window.L.layerGroup().addTo(map);
@@ -771,12 +768,8 @@ function syncMapTheme() {
 
   mapTileLayer = window.L.tileLayer(nextUrl, {
     attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
   }).addTo(map);
-
-  if (mapLayerGroup) {
-    mapLayerGroup.bringToFront();
-  }
 
   if (userLocationMarker) {
     userLocationMarker.bringToFront();
@@ -808,7 +801,7 @@ function focusUserLocation(forcePrompt) {
     (position) => {
       userCoords = {
         latitude: position.coords.latitude,
-        longitude: position.coords.longitude
+        longitude: position.coords.longitude,
       };
       paintUserLocation();
       applyUserCenteredMapView();
@@ -818,13 +811,14 @@ function focusUserLocation(forcePrompt) {
     () => {
       locateUserBtn.disabled = false;
       locateUserBtn.textContent = "Moje poloha";
-      mapMetaNode.textContent = "Polohu se nepodařilo zjistit. Zůstávám u pohledu na celé Česko.";
+      mapMetaNode.textContent =
+        "Polohu se nepodařilo zjistit. Zůstávám u pohledu na celé Česko.";
     },
     {
       enableHighAccuracy: true,
       timeout: 7000,
-      maximumAge: 300000
-    }
+      maximumAge: 300000,
+    },
   );
 }
 
@@ -838,16 +832,19 @@ function paintUserLocation() {
     return;
   }
 
-  userLocationMarker = window.L.circleMarker([userCoords.latitude, userCoords.longitude], {
-    radius: 8,
-    weight: 2,
-    color: "#ffffff",
-    fillColor: "#58d6ff",
-    fillOpacity: 0.95
-  })
+  userLocationMarker = window.L.circleMarker(
+    [userCoords.latitude, userCoords.longitude],
+    {
+      radius: 8,
+      weight: 2,
+      color: "#ffffff",
+      fillColor: "#58d6ff",
+      fillOpacity: 0.95,
+    },
+  )
     .bindTooltip("Vaše poloha", {
       direction: "top",
-      offset: [0, -8]
+      offset: [0, -8],
     })
     .addTo(map);
 }
@@ -857,7 +854,7 @@ function applyUserCenteredMapView() {
     return;
   }
 
-  const source = filtered.length ? filtered.map(({ item }) => item) : dataset;
+  const source = filtered.map(({ item }) => item);
   const nearby = source
     .map((item) => ({
       item,
@@ -865,8 +862,8 @@ function applyUserCenteredMapView() {
         userCoords.latitude,
         userCoords.longitude,
         item.coordinates.latitude,
-        item.coordinates.longitude
-      )
+        item.coordinates.longitude,
+      ),
     }))
     .filter((entry) => Number.isFinite(entry.distanceKm))
     .sort((a, b) => a.distanceKm - b.distanceKm)
@@ -874,7 +871,10 @@ function applyUserCenteredMapView() {
 
   const closeEnough = nearby.filter((entry) => entry.distanceKm <= 20);
   const selection = closeEnough.length ? closeEnough : nearby.slice(0, 20);
-  const bounds = selection.map((entry) => [entry.item.coordinates.latitude, entry.item.coordinates.longitude]);
+  const bounds = selection.map((entry) => [
+    entry.item.coordinates.latitude,
+    entry.item.coordinates.longitude,
+  ]);
   bounds.push([userCoords.latitude, userCoords.longitude]);
 
   paintUserLocation();
@@ -882,7 +882,7 @@ function applyUserCenteredMapView() {
   if (bounds.length > 1) {
     map.fitBounds(bounds, {
       padding: [40, 40],
-      maxZoom: 15
+      maxZoom: 15,
     });
   } else {
     map.setView([userCoords.latitude, userCoords.longitude], 15);
@@ -899,7 +899,7 @@ function refreshMapMarkers() {
     return;
   }
 
-  const source = filtered.length ? filtered.map(({ item }) => item) : dataset;
+  const source = filtered.map(({ item }) => item);
   const bounds = paintMarkers(mapLayerGroup, source, { clickable: true });
   paintUserLocation();
 
@@ -931,15 +931,18 @@ function paintMarkers(layerGroup, source, options = {}) {
         className: "emoji-map-marker",
         html: `<span>${pickEmoji(item)}</span>`,
         iconSize: options.iconSize || [24, 24],
-        iconAnchor: options.iconAnchor || [12, 12]
-      })
+        iconAnchor: options.iconAnchor || [12, 12],
+      }),
     });
 
     if (options.clickable !== false) {
-      marker.bindTooltip(`<strong>${escapeHtml(pickEmoji(item))} ${escapeHtml(item.name)}</strong><br>${escapeHtml(item.city || item.address)}`, {
-        direction: "top",
-        offset: [0, -8]
-      });
+      marker.bindTooltip(
+        `<strong>${escapeHtml(pickEmoji(item))} ${escapeHtml(item.name)}</strong><br>${escapeHtml(item.city || item.address)}`,
+        {
+          direction: "top",
+          offset: [0, -8],
+        },
+      );
 
       marker.on("click", () => {
         closeMap();
@@ -978,7 +981,7 @@ function fitMapToBounds(instance, bounds, maxZoom = 13) {
   if (bounds.length) {
     instance.fitBounds(bounds, {
       padding: [40, 40],
-      maxZoom
+      maxZoom,
     });
   } else {
     instance.setView(defaultMapCenter, defaultMapZoom);
@@ -992,7 +995,10 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   const dLon = toRad(lon2 - lon1);
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return earthRadiusKm * c;
 }

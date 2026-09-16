@@ -10,8 +10,17 @@
     />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./favicon-192.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="192x192"
+      href="./favicon-192.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="./apple-touch-icon.png"
+    />
     <link rel="manifest" href="./site.webmanifest" />
     <meta name="theme-color" content="#f5f1eb" />
     <meta
@@ -20,7 +29,10 @@
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Žrádlomapa" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <script>
       (() => {
         let theme = "light";
@@ -36,127 +48,123 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="page-shell">
-      <header class="hero">
-        <div class="hero-copy">
-          <div class="hero-topline">
-            <p class="eyebrow">Neoficiální přehled</p>
-            <div class="hero-topline-actions">
-              <span class="hero-badge">Live API</span>
-              <button id="themeToggleBtn" class="theme-toggle-btn" type="button" aria-label="Přepnout vzhled">
-                <span id="themeToggleIcon" aria-hidden="true">☀</span>
-              </button>
-            </div>
-          </div>
-          <h1>Žrádlomapa. Protože hlad je zlo.</h1>
-          <p class="lede">
-            Rychlý přehled podniků z veřejně dostupných dat. Hledejte podle názvu,
-            města nebo typu a otevřete si detail bez zbytečného klikání.
-          </p>
-          <p class="hero-note">
-            Když se vám nechce lovit podniky v aplikaci, tady je máte přehledně na jednom místě.
-          </p>
-          <div class="hero-actions">
-            <button id="openMapBtn" class="ghost-btn" type="button">Otevřít mapu Česka</button>
-          </div>
-        </div>
-        <div class="hero-stats">
-          <details class="hero-info-card">
-            <summary class="hero-info-toggle" aria-label="Informace o živých datech">
-              <span aria-hidden="true">i</span>
-            </summary>
-            <div class="hero-info-popover">
-              <div class="stat-card">
-                <span class="stat-label">Naposledy aktualizováno</span>
-                <strong id="syncTime">Načítám…</strong>
-              </div>
-              <div class="stat-card">
-                <span class="stat-label">Počet podniků</span>
-                <strong id="recordCount">–</strong>
-              </div>
-            </div>
-          </details>
-          <button id="openMapPreviewBtn" class="map-preview-card" type="button">
-            <div class="map-preview-copy">
-              <span class="stat-label">Mapa podniků</span>
-              <strong>Projít podniky na mapě</strong>
-            </div>
-            <div class="mini-map-canvas">
-              <img
-                class="mini-map-image"
-                src="./assets/cz-map-preview.jpg"
-                alt="Náhled mapy Česka s gastro body"
-                loading="eager"
-                decoding="async"
-              />
-            </div>
-          </button>
-        </div>
+      <header class="site-header">
+        <a class="brand" href="./" aria-label="Žrádlomapa – úvod"
+          >žrádlomapa<span aria-hidden="true">.</span></a
+        >
+        <button
+          id="themeToggleBtn"
+          class="icon-btn"
+          type="button"
+          aria-label="Přepnout vzhled"
+        >
+          <span id="themeToggleIcon" aria-hidden="true">☀</span>
+        </button>
       </header>
-
-      <main class="layout">
-        <section class="panel search-panel">
-          <div class="panel-head">
-            <label class="search-label" for="query">Hledejte podle názvu, města nebo typu</label>
-            <p class="panel-subtle">Data se při otevření načtou živě z API Gastromapy.</p>
-          </div>
+      <main>
+        <section class="intro">
+          <p class="eyebrow">DOBRÉ JÍDLO. BLÍZKO VÁS.</p>
+          <h1>Kam na něco dobrého?</h1>
+          <p>Najděte si podnik. Zbytek je na vaší chuti.</p>
+        </section>
+        <section class="search-panel" aria-label="Hledání podniků">
+          <label class="search-label" for="query"
+            >Město, podnik nebo chuť</label
+          >
           <div class="search-row">
             <input
               id="query"
               type="search"
               value="Praha"
-              placeholder="Třeba Eska, Brno, kavárna nebo Lokál…"
+              placeholder="Třeba Brno, Eska nebo káva"
               autocomplete="off"
-            />
-            <button id="clearBtn" type="button">Vymazat</button>
+              enterkeyhint="search"
+            /><button
+              id="clearBtn"
+              type="button"
+              aria-label="Vymazat hledání a filtry"
+            >
+              Vymazat
+            </button>
           </div>
           <div class="quick-filter-row" aria-label="Rychlé filtry měst">
-            <button class="quick-filter-chip" type="button" data-query="Praha">Praha</button>
-            <button class="quick-filter-chip" type="button" data-query="Vinohrady">Vinohrady</button>
-            <button class="quick-filter-chip" type="button" data-query="Brno">Brno</button>
-            <button class="quick-filter-chip" type="button" data-query="Plzeň">Plzeň</button>
-            <button class="quick-filter-chip" type="button" data-query="Liberec">Liberec</button>
-            <button class="quick-filter-chip" type="button" data-query="Pardubice">Pardubice</button>
+            <button class="quick-filter-chip" type="button" data-query="Praha">
+              Praha</button
+            ><button class="quick-filter-chip" type="button" data-query="Brno">
+              Brno</button
+            ><button class="quick-filter-chip" type="button" data-query="Plzeň">
+              Plzeň</button
+            ><button
+              class="quick-filter-chip"
+              type="button"
+              data-query="Liberec"
+            >
+              Liberec
+            </button>
           </div>
           <div class="filter-row">
-            <label for="tagFilter">Typ</label>
-            <select id="tagFilter">
-              <option value="">Všechny typy</option>
-            </select>
+            <label class="sr-only" for="tagFilter">Typ podniku</label
+            ><select id="tagFilter">
+              <option value="">Všechny typy</option></select
+            ><button id="openMapBtn" class="primary-btn" type="button">
+              Zobrazit mapu ↗
+            </button>
           </div>
-          <p class="hint">
-            Žádná databáze podniků se v tomto repozitáři ani na serveru trvale neukládá.
-          </p>
         </section>
-
-        <section class="results-column">
+        <section class="results-column" aria-labelledby="resultsTitle">
           <div class="results-head">
-            <h2>Výsledky</h2>
-            <span id="resultMeta">–</span>
+            <h2 id="resultsTitle">Podniky</h2>
+            <span id="resultMeta" role="status">Načítám…</span>
           </div>
-          <div id="results" class="results-grid" aria-live="polite"></div>
+          <div id="loadStatus" role="status">
+            <span id="syncTime">Hledám podniky…</span
+            ><span id="recordCount" hidden></span
+            ><button id="retryBtn" type="button" hidden>Zkusit znovu</button>
+          </div>
+          <div id="results" class="results-grid" aria-busy="true"></div>
+          <button id="loadMoreBtn" class="load-more" type="button" hidden>
+            Zobrazit další podniky
+          </button>
         </section>
       </main>
+      <footer>
+        Neoficiální průvodce · Zdroj:
+        <a href="https://www.gastromapa.cz/" target="_blank" rel="noreferrer"
+          >Gastromapa</a
+        >
+      </footer>
     </div>
 
     <div id="detailOverlay" class="detail-overlay" hidden>
-      <button id="detailBackdrop" class="detail-backdrop" type="button" aria-label="Zavřít detail"></button>
-      <aside class="detail-drawer" aria-labelledby="detailDrawerTitle">
+      <button
+        id="detailBackdrop"
+        class="detail-backdrop"
+        type="button"
+        aria-label="Zavřít detail"
+      ></button>
+      <aside
+        class="detail-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="detailDrawerTitle"
+      >
         <div class="detail-drawer-head">
           <div>
             <p class="eyebrow">Detail místa</p>
             <h2 id="detailDrawerTitle">Podnik</h2>
           </div>
-          <button id="detailCloseBtn" class="detail-close-btn" type="button" aria-label="Zavřít detail">×</button>
+          <button
+            id="detailCloseBtn"
+            class="detail-close-btn"
+            type="button"
+            aria-label="Zavřít detail"
+          >
+            ×
+          </button>
         </div>
         <div id="detail" class="detail-empty">
           Vyberte si podnik ze seznamu a tady se otevře jeho detail.
@@ -165,26 +173,40 @@
     </div>
 
     <div id="mapOverlay" class="map-overlay" hidden>
-      <div class="map-shell">
+      <div
+        class="map-shell"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mapTitle"
+      >
         <div class="map-head">
           <div>
-            <p class="eyebrow">Mapa Česka</p>
-            <h2>Podniky přehledně na jedné mapě</h2>
+            <h2 id="mapTitle">Podniky na mapě</h2>
             <p id="mapMeta" class="panel-subtle">Načítám mapu…</p>
           </div>
           <div class="map-head-actions">
-            <button id="locateUserBtn" class="ghost-btn" type="button">Moje poloha</button>
-            <button id="closeMapBtn" class="detail-close-btn" type="button" aria-label="Zavřít mapu">×</button>
+            <button id="locateUserBtn" class="ghost-btn" type="button">
+              Moje poloha
+            </button>
+            <button
+              id="closeMapBtn"
+              class="detail-close-btn"
+              type="button"
+              aria-label="Zavřít mapu"
+            >
+              ×
+            </button>
           </div>
         </div>
         <div class="map-filters">
           <input
+            aria-label="Hledání na mapě"
             id="mapQuery"
             type="search"
             placeholder="Filtrovat podle názvu, města nebo typu…"
             autocomplete="off"
           />
-          <select id="mapTagFilter">
+          <select aria-label="Typ podniku na mapě" id="mapTagFilter">
             <option value="">Všechny typy</option>
           </select>
         </div>
