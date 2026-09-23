@@ -59,9 +59,11 @@ Repozitář smí obsahovat pouze zdrojový kód a vlastní statické assety apli
 
 ## Rozhraní (mobile-first)
 
-- Jedno hledání a typ podniku; seznam a mapa sdílejí stejné filtry.
+- Lokalita je oddělená od hledání názvu, typu nebo chuti; seznam a mapa sdílejí stejné filtry.
 - Hledání ignoruje diakritiku. Seznam vykresluje 24 položek, další jsou dostupné tlačítkem.
-- Detail nabízí fotografie z API, kontakty, navigaci a otevírací dobu, pokud je zdroj poskytuje.
+- Volba „Okolí“ se aktivuje pouze na vyžádání a řadí výsledky podle vzdálenosti.
+- Detail upřednostňuje dnešní otevírací dobu, navigaci a kontakt před galerií a delším popisem.
+- Mapa seskupuje blízké markery a každý samostatný marker má přístupný název podniku.
 - Nulové výsledky znamenají prázdnou mapu, nikoli přepnutí na všechny podniky.
 - Poloha se zjišťuje pouze po stisku „Moje poloha“; není nutná pro hledání.
 - Rozhraní funguje během načítání; po výpadku je dostupné opakování bez obnovení stránky.

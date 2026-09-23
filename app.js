@@ -1,8 +1,11 @@
 import { loadRestaurantsLive } from "./api.js";
 const queryInput = document.querySelector("#query");
+const locationInput = document.querySelector("#locationQuery");
 const tagFilter = document.querySelector("#tagFilter");
 const clearBtn = document.querySelector("#clearBtn");
 const quickFilterChips = [...document.querySelectorAll(".quick-filter-chip")];
+const cityFilterChips = quickFilterChips.filter((chip) => chip.dataset.query);
+const nearMeBtn = document.querySelector("#nearMeBtn");
 const themeToggleBtn = document.querySelector("#themeToggleBtn");
 const themeToggleIcon = document.querySelector("#themeToggleIcon");
 const openMapBtn = document.querySelector("#openMapBtn");
@@ -11,6 +14,7 @@ const locateUserBtn = document.querySelector("#locateUserBtn");
 const mapOverlayNode = document.querySelector("#mapOverlay");
 const mapMetaNode = document.querySelector("#mapMeta");
 const mapCanvasNode = document.querySelector("#mapCanvas");
+const mapLocationInput = document.querySelector("#mapLocationQuery");
 const mapQueryInput = document.querySelector("#mapQuery");
 const mapTagFilter = document.querySelector("#mapTagFilter");
 const resultsNode = document.querySelector("#results");
@@ -26,7 +30,7 @@ const resultTemplate = document.querySelector("#resultTemplate");
 const galleryThumbTemplate = document.querySelector("#galleryThumbTemplate");
 const themeColorMeta = document.querySelector('meta[name="theme-color"]');
 
-const dayNames = ["", "Po", "Ut", "St", "Ct", "Pa", "So", "Ne"];
+const dayNames = ["", "Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
 const defaultMapCenter = [49.8175, 15.473];
 const defaultMapZoom = 7;
 const THEME_CACHE_KEY = "zradlomapa:theme";
@@ -67,12 +71,14 @@ let selectedImageIndex = 0;
 let map = null;
 let mapTileLayer = null;
 let mapLayerGroup = null;
+let mapMarkerSource = [];
 let userLocationMarker = null;
 let userCoords = null;
 let syncingMapControls = false;
+let locationMode = "text";
 
-if (!window.location.hash && !queryInput.value) {
-  queryInput.value = quickFilterChips[0]?.dataset.query || "Praha";
+if (!window.location.hash && !locationInput.value) {
+  locationInput.value = cityFilterChips[0]?.dataset.query || "Praha";
 }
 
 wireEvents();
@@ -147,30 +153,50 @@ function wireEvents() {
     syncMapControlsFromMain();
     runSearch();
   });
+  locationInput.addEventListener("input", () => {
+    locationMode = "text";
+    syncMapControlsFromMain();
+    runSearch();
+  });
   tagFilter.addEventListener("change", () => {
     syncMapControlsFromMain();
     runSearch();
   });
   clearBtn.addEventListener("click", () => {
     queryInput.value = "";
+    locationInput.value = "";
     tagFilter.value = "";
+    locationMode = "text";
     syncMapControlsFromMain();
     runSearch();
+    locationInput.focus();
   });
   themeToggleBtn?.addEventListener("click", () => {
     applyTheme(getCurrentTheme() === "light" ? "dark" : "light");
   });
-  quickFilterChips.forEach((chip) => {
+  cityFilterChips.forEach((chip) => {
     chip.addEventListener("click", () => {
       const nextQuery = chip.dataset.query || "";
-      queryInput.value =
-        queryInput.value.trim().toLowerCase() === nextQuery.toLowerCase()
+      locationMode = "text";
+      locationInput.value =
+        locationInput.value.trim().toLowerCase() === nextQuery.toLowerCase()
           ? ""
           : nextQuery;
       syncMapControlsFromMain();
       runSearch();
-      queryInput.blur();
+      locationInput.blur();
     });
+  });
+  nearMeBtn.addEventListener("click", () => requestUserLocation(true));
+
+  mapLocationInput.addEventListener("input", () => {
+    if (syncingMapControls) {
+      return;
+    }
+
+    locationMode = "text";
+    locationInput.value = mapLocationInput.value;
+    runSearch();
   });
 
   mapQueryInput.addEventListener("input", () => {
@@ -194,7 +220,7 @@ function wireEvents() {
   openMapBtn.addEventListener("click", openMap);
 
   closeMapBtn.addEventListener("click", closeMap);
-  locateUserBtn.addEventListener("click", () => focusUserLocation(true));
+  locateUserBtn.addEventListener("click", () => requestUserLocation(true));
   mapOverlayNode.addEventListener("click", (event) => {
     if (event.target === mapOverlayNode) {
       closeMap();
@@ -322,6 +348,7 @@ function hydrateTagFilter(restaurants) {
 
 function syncMapControlsFromMain() {
   syncingMapControls = true;
+  mapLocationInput.value = locationInput.value;
   mapQueryInput.value = queryInput.value;
   mapTagFilter.value = tagFilter.value;
   syncingMapControls = false;
@@ -330,23 +357,54 @@ function syncMapControlsFromMain() {
 function runSearch({ progressive = false } = {}) {
   if (!progressive) renderLimit = RESULTS_PAGE_SIZE;
   const query = normalizeText(queryInput.value.trim());
+  const locationQuery = normalizeText(locationInput.value.trim());
   const activeTag = tagFilter.value;
 
   filtered = dataset
-    .map((item) => ({ item, score: scoreItem(item, query) }))
+    .map((item) => ({
+      item,
+      score: scoreItem(item, query),
+      distanceKm: userCoords
+        ? haversineKm(
+            userCoords.latitude,
+            userCoords.longitude,
+            item.coordinates.latitude,
+            item.coordinates.longitude,
+          )
+        : Number.POSITIVE_INFINITY,
+    }))
     .filter(({ item, score }) => {
       const tagMatches =
         !activeTag || item.tags.some((tag) => tag.name === activeTag);
       const queryMatches = !query || score > 0;
-      return tagMatches && queryMatches;
+      const locationMatches =
+        locationMode === "nearby" ||
+        !locationQuery ||
+        item.addressLc.includes(locationQuery) ||
+        item.cityLc.includes(locationQuery);
+      return tagMatches && queryMatches && locationMatches;
     })
-    .sort(
-      (left, right) =>
+    .sort((left, right) => {
+      if (locationMode === "nearby") {
+        return (
+          left.distanceKm - right.distanceKm ||
+          right.score - left.score ||
+          left.item.name.localeCompare(right.item.name, "cs")
+        );
+      }
+
+      return (
         right.score - left.score ||
-        left.item.name.localeCompare(right.item.name, "cs"),
-    );
+        left.item.name.localeCompare(right.item.name, "cs")
+      );
+    });
 
   resultMetaNode.textContent = `${filtered.length} podniků${loading ? " · načítání pokračuje" : ""}`;
+  openMapBtn.textContent = `Mapa · ${filtered.length}`;
+  openMapBtn.setAttribute(
+    "aria-label",
+    `Zobrazit ${filtered.length} podniků na mapě`,
+  );
   paintQuickFilters();
   syncSelection();
   paintResults();
@@ -365,14 +423,23 @@ function runSearch({ progressive = false } = {}) {
 }
 
 function paintQuickFilters() {
-  const activeQuery = queryInput.value.trim().toLowerCase();
+  const activeQuery = locationInput.value.trim().toLowerCase();
 
-  quickFilterChips.forEach((chip) => {
+  cityFilterChips.forEach((chip) => {
     const chipQuery = (chip.dataset.query || "").trim().toLowerCase();
-    const isActive = Boolean(activeQuery) && chipQuery === activeQuery;
+    const isActive =
+      locationMode === "text" &&
+      Boolean(activeQuery) &&
+      chipQuery === activeQuery;
     chip.classList.toggle("is-active", isActive);
     chip.setAttribute("aria-pressed", isActive ? "true" : "false");
   });
+
+  nearMeBtn.classList.toggle("is-active", locationMode === "nearby");
+  nearMeBtn.setAttribute(
+    "aria-pressed",
+    locationMode === "nearby" ? "true" : "false",
+  );
 }
 
 function syncSelection() {
@@ -394,8 +461,6 @@ function scoreItem(item, query) {
 
   let score = 0;
   if (item.nameLc.includes(query)) score += 120;
-  if (item.addressLc.includes(query)) score += 55;
-  if (item.cityLc.includes(query)) score += 40;
   if (item.tagsLc.some((tag) => tag.includes(query))) score += 35;
   if (item.descriptionLc.includes(query)) score += 14;
   if (item.slugLc.includes(query)) score += 18;
@@ -412,17 +477,27 @@ function paintResults() {
     return;
   }
 
-  for (const { item, score } of getRenderableResults()) {
+  for (const { item, distanceKm } of getRenderableResults()) {
     const fragment = resultTemplate.content.cloneNode(true);
     const button = fragment.querySelector(".result-hit");
     button.dataset.restaurantId = String(item.id);
     const address = fragment.querySelector(".result-address");
+    const availability = getOpeningSummary(item.openingTimes);
+    const availabilityBadge = fragment.querySelector(".availability-badge");
+    const distanceNode = fragment.querySelector(".result-distance");
 
     fragment.querySelector("h3").textContent =
       `${pickEmoji(item)} ${item.name}`;
+    fragment.querySelector(".result-locality").textContent =
+      `⌖ ${getLocality(item)}`;
     address.textContent = item.address;
-    fragment.querySelector(".score-badge").textContent =
-      item.mainTag?.name || (queryInput.value.trim() ? "Shoda" : "Výběr");
+    availabilityBadge.textContent = availability.statusLabel;
+    availabilityBadge.dataset.state = availability.state;
+    availabilityBadge.hidden = availability.state === "unknown";
+    distanceNode.textContent =
+      locationMode === "nearby" && Number.isFinite(distanceKm)
+        ? formatDistance(distanceKm)
+        : "";
 
     if (item.id === selectedRestaurantId) {
       button.classList.add("is-active");
@@ -430,7 +505,7 @@ function paintResults() {
     }
 
     const tagRow = fragment.querySelector(".tag-row");
-    for (const tag of item.tags.slice(0, 4)) {
+    for (const tag of item.tags.slice(0, 3)) {
       const pill = document.createElement("span");
       pill.className = "tag-pill";
       pill.textContent = tag.name;
@@ -484,6 +559,8 @@ function selectRestaurant(restaurantId) {
 function paintDetail(item) {
   const images = getGalleryImages(item);
   const remoteImageCount = item.images?.length || 0;
+  const opening = getOpeningSummary(item.openingTimes);
+  const descriptionIsLong = (item.description || "").length > 320;
   const safeIndex = Math.min(
     selectedImageIndex,
     Math.max(images.length - 1, 0),
@@ -494,8 +571,7 @@ function paintDetail(item) {
 
   detailNode.className = "detail-card";
   detailNode.innerHTML = `
-    ${renderGallery(item, activeImage)}
-    <div class="detail-copy">
+    <div class="detail-copy detail-copy-primary">
       <div class="detail-header">
         <div>
           <h3 class="detail-title">${escapeHtml(pickEmoji(item))} ${escapeHtml(item.name)}</h3>
@@ -506,19 +582,30 @@ function paintDetail(item) {
           <span>${remoteImageCount ? `${remoteImageCount} fotografií` : images.length ? "1 záložní fotka" : "Bez fotografií"}</span>
         </div>
       </div>
+      <div class="detail-hours-summary" data-state="${opening.state}">
+        <strong>${escapeHtml(opening.statusLabel)}</strong>
+        <span>${escapeHtml(opening.scheduleLabel)}</span>
+      </div>
       <div class="tag-row">
         ${item.tags.map((tag) => `<span class="tag-pill">${escapeHtml(tag.name)}</span>`).join("")}
       </div>
       <div class="detail-links">
+        <a class="detail-primary-action" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(Number.isFinite(item.coordinates.latitude) && Number.isFinite(item.coordinates.longitude) ? `${item.coordinates.latitude},${item.coordinates.longitude}` : `${item.name} ${item.address}`)}" target="_blank" rel="noreferrer">Navigovat ↗</a>
+        ${item.phone ? `<a href="tel:${escapeAttribute(item.phone)}">Zavolat</a>` : ""}
         ${item.website ? `<a href="${escapeAttribute(item.website)}" target="_blank" rel="noreferrer">Web</a>` : ""}
         ${item.restaurantFacebookUrl ? `<a href="${escapeAttribute(item.restaurantFacebookUrl)}" target="_blank" rel="noreferrer">Facebook</a>` : ""}
-        ${item.facebookPostUrl ? `<a href="${escapeAttribute(item.facebookPostUrl)}" target="_blank" rel="noreferrer">Příspěvek</a>` : ""}
-        ${item.phone ? `<a href="tel:${escapeAttribute(item.phone)}">${escapeHtml(item.phone)}</a>` : ""}
-        <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(Number.isFinite(item.coordinates.latitude) && Number.isFinite(item.coordinates.longitude) ? `${item.coordinates.latitude},${item.coordinates.longitude}` : `${item.name} ${item.address}`)}" target="_blank" rel="noreferrer">Navigovat ↗</a>
+        ${item.facebookPostUrl ? `<a href="${escapeAttribute(item.facebookPostUrl)}" target="_blank" rel="noreferrer">Gastromapa příspěvek</a>` : ""}
       </div>
-      <div class="detail-description">
-        ${renderDescription(item.description)}
-      </div>
+    </div>
+    ${renderGallery(item, activeImage)}
+    <div class="detail-copy detail-copy-secondary">
+      <section class="detail-section">
+        <h3>O podniku</h3>
+        <div id="detailDescription" class="detail-description${descriptionIsLong ? " is-collapsed" : ""}">
+          ${renderDescription(item.description)}
+        </div>
+        ${descriptionIsLong ? '<button id="detailDescriptionToggle" class="detail-description-toggle" type="button" aria-expanded="false">Zobrazit více</button>' : ""}
+      </section>
       <section class="detail-section">
         <h3>Otevírací doba</h3>
         ${renderOpeningHours(item.openingTimes)}
@@ -527,6 +614,7 @@ function paintDetail(item) {
   `;
 
   wireGallery(item);
+  wireDetailDescription();
 }
 
 function renderGallery(item, activeImage) {
@@ -591,6 +679,22 @@ function wireGallery(item) {
   });
 }
 
+function wireDetailDescription() {
+  const description = detailNode.querySelector("#detailDescription");
+  const toggle = detailNode.querySelector("#detailDescriptionToggle");
+
+  if (!description || !toggle) {
+    return;
+  }
+
+  toggle.addEventListener("click", () => {
+    const expanded = toggle.getAttribute("aria-expanded") === "true";
+    description.classList.toggle("is-collapsed", expanded);
+    toggle.setAttribute("aria-expanded", expanded ? "false" : "true");
+    toggle.textContent = expanded ? "Zobrazit více" : "Zobrazit méně";
+  });
+}
+
 function renderDescription(description) {
   if (!description) {
     return "<p>Popis zatím chybí.</p>";
@@ -619,6 +723,105 @@ function renderOpeningHours(openingTimes) {
     .join("");
 
   return `<ul class="hours-list">${rows}</ul>`;
+}
+
+function getOpeningSummary(openingTimes, now = new Date()) {
+  if (!openingTimes?.length) {
+    return {
+      state: "unknown",
+      statusLabel: "Otevírací doba neuvedena",
+      scheduleLabel: "Zdroj dnes neuvádí otevírací dobu",
+    };
+  }
+
+  const { day, minutes } = getPragueClock(now);
+  const today = openingTimes.find((entry) => Number(entry.day) === day);
+  const previousDay = day === 1 ? 7 : day - 1;
+  const previous = openingTimes.find(
+    (entry) => Number(entry.day) === previousDay,
+  );
+  const todaySlots = today?.times || [];
+  const scheduleLabel = todaySlots.length
+    ? `Dnes ${todaySlots.map((slot) => `${slot.from}–${slot.to}`).join(", ")}`
+    : "Dnes zavřeno";
+
+  const overnightPrevious = (previous?.times || []).find((slot) => {
+    const from = parseTimeMinutes(slot.from);
+    const to = parseTimeMinutes(slot.to);
+    return Number.isFinite(from) && Number.isFinite(to) && to < from && minutes < to;
+  });
+  if (overnightPrevious) {
+    return {
+      state: "open",
+      statusLabel: `Otevřeno do ${overnightPrevious.to}`,
+      scheduleLabel,
+    };
+  }
+
+  const activeSlot = todaySlots.find((slot) => {
+    const from = parseTimeMinutes(slot.from);
+    const to = parseTimeMinutes(slot.to);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return false;
+    return to < from
+      ? minutes >= from || minutes < to
+      : minutes >= from && minutes < to;
+  });
+
+  return activeSlot
+    ? {
+        state: "open",
+        statusLabel: `Otevřeno do ${activeSlot.to}`,
+        scheduleLabel,
+      }
+    : {
+        state: "closed",
+        statusLabel: "Teď zavřeno",
+        scheduleLabel,
+      };
+}
+
+function getPragueClock(date) {
+  const values = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Prague",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+      .formatToParts(date)
+      .filter(({ type }) => type !== "literal")
+      .map(({ type, value }) => [type, value]),
+  );
+  const weekdays = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+  return {
+    day: weekdays[values.weekday],
+    minutes: (Number(values.hour) % 24) * 60 + Number(values.minute),
+  };
+}
+
+function parseTimeMinutes(value) {
+  const [hour, minute] = String(value || "")
+    .split(":")
+    .map(Number);
+  return Number.isFinite(hour) && Number.isFinite(minute)
+    ? hour * 60 + minute
+    : Number.NaN;
+}
+
+function getLocality(item) {
+  const parts = String(item.address || "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts[1] || parts[0] || "Česko";
+}
+
+function formatDistance(distanceKm) {
+  if (distanceKm < 1) {
+    return `${Math.max(50, Math.round((distanceKm * 1000) / 50) * 50)} m`;
+  }
+  return `${distanceKm < 10 ? distanceKm.toFixed(1) : Math.round(distanceKm)} km`;
 }
 
 function enrichRestaurant(item) {
@@ -774,6 +977,12 @@ function initMapIfNeeded() {
   }
 
   mapLayerGroup = window.L.layerGroup().addTo(map);
+  map.on("zoomend", () => {
+    paintMarkers(mapLayerGroup, mapMarkerSource, {
+      clickable: true,
+      cluster: true,
+    });
+  });
   window.addEventListener("resize", requestMapResize);
 }
 
@@ -784,19 +993,25 @@ function requestMapResize() {
   });
 }
 
-function focusUserLocation(forcePrompt) {
+function requestUserLocation(forcePrompt = false) {
   if (userCoords && !forcePrompt) {
+    locationMode = "nearby";
+    locationInput.value = "";
+    syncMapControlsFromMain();
+    runSearch();
     applyUserCenteredMapView();
     return;
   }
 
   if (!navigator.geolocation) {
-    mapMetaNode.textContent = "Tento prohlížeč geolokaci nepodporuje.";
+    setLocationStatus("Tento prohlížeč geolokaci nepodporuje.");
     return;
   }
 
   locateUserBtn.disabled = true;
   locateUserBtn.textContent = "Hledám polohu…";
+  nearMeBtn.disabled = true;
+  nearMeBtn.textContent = "Hledám…";
 
   navigator.geolocation.getCurrentPosition(
     (position) => {
@@ -804,16 +1019,26 @@ function focusUserLocation(forcePrompt) {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
       };
+      locationMode = "nearby";
+      locationInput.value = "";
+      syncMapControlsFromMain();
+      runSearch();
       paintUserLocation();
-      applyUserCenteredMapView();
+      if (!mapOverlayNode.hidden) applyUserCenteredMapView();
       locateUserBtn.disabled = false;
       locateUserBtn.textContent = "Moje poloha";
+      nearMeBtn.disabled = false;
+      nearMeBtn.textContent = "◎ Okolí";
+      locationInput.blur();
     },
     () => {
       locateUserBtn.disabled = false;
       locateUserBtn.textContent = "Moje poloha";
-      mapMetaNode.textContent =
-        "Polohu se nepodařilo zjistit. Zůstávám u pohledu na celé Česko.";
+      nearMeBtn.disabled = false;
+      nearMeBtn.textContent = "◎ Okolí";
+      setLocationStatus(
+        "Polohu se nepodařilo zjistit. Zůstávám u pohledu na celé Česko.",
+      );
     },
     {
       enableHighAccuracy: true,
@@ -821,6 +1046,11 @@ function focusUserLocation(forcePrompt) {
       maximumAge: 300000,
     },
   );
+}
+
+function setLocationStatus(message) {
+  mapMetaNode.textContent = message;
+  if (mapOverlayNode.hidden) syncTimeNode.textContent = message;
 }
 
 function paintUserLocation() {
@@ -855,7 +1085,11 @@ function applyUserCenteredMapView() {
     return;
   }
 
-  const source = filtered.map(({ item }) => item);
+  const sourceEntries =
+    locationMode === "nearby" && userCoords
+      ? filtered.filter(({ distanceKm }) => Number.isFinite(distanceKm)).slice(0, 40)
+      : filtered;
+  const source = sourceEntries.map(({ item }) => item);
   const nearby = source
     .map((item) => ({
       item,
@@ -900,11 +1134,21 @@ function refreshMapMarkers(preserveView = false) {
     return;
   }
 
-  const source = filtered.map(({ item }) => item);
-  const bounds = paintMarkers(mapLayerGroup, source, { clickable: true });
+  const sourceEntries =
+    locationMode === "nearby" && userCoords
+      ? filtered
+          .filter(({ distanceKm }) => Number.isFinite(distanceKm))
+          .slice(0, 40)
+      : filtered;
+  const source = sourceEntries.map(({ item }) => item);
+  mapMarkerSource = source;
+  const bounds = paintMarkers(mapLayerGroup, source, {
+    clickable: true,
+    cluster: true,
+  });
   paintUserLocation();
 
-  if (userCoords) {
+  if (locationMode === "nearby" && userCoords) {
     applyUserCenteredMapView();
     return;
   }
@@ -919,43 +1163,102 @@ function refreshMapMarkers(preserveView = false) {
 
 function paintMarkers(layerGroup, source, options = {}) {
   layerGroup.clearLayers();
-  const bounds = [];
+  const entries = source
+    .map((item) => ({
+      item,
+      point: [item.coordinates.latitude, item.coordinates.longitude],
+    }))
+    .filter(({ point }) => point.every(Number.isFinite));
+  const bounds = entries.map(({ point }) => point);
+  const groups =
+    options.cluster === false ? entries.map((entry) => [entry]) : clusterEntries(entries);
 
-  for (const item of source) {
-    const { latitude, longitude } = item.coordinates;
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      continue;
+  for (const group of groups) {
+    if (group.length === 1) {
+      addRestaurantMarker(layerGroup, group[0].item, options);
+    } else {
+      addClusterMarker(layerGroup, group);
     }
-
-    const marker = window.L.marker([latitude, longitude], {
-      icon: window.L.divIcon({
-        className: "emoji-map-marker",
-        html: `<span>${pickEmoji(item)}</span>`,
-        iconSize: options.iconSize || [24, 24],
-        iconAnchor: options.iconAnchor || [12, 12],
-      }),
-    });
-
-    if (options.clickable !== false) {
-      marker.bindTooltip(
-        `<strong>${escapeHtml(pickEmoji(item))} ${escapeHtml(item.name)}</strong><br>${escapeHtml(item.city || item.address)}`,
-        {
-          direction: "top",
-          offset: [0, -8],
-        },
-      );
-
-      marker.on("click", () => {
-        closeMap();
-        selectRestaurant(item.id);
-      });
-    }
-
-    marker.addTo(layerGroup);
-    bounds.push([latitude, longitude]);
   }
 
   return bounds;
+}
+
+function clusterEntries(entries) {
+  if (!map || map.getZoom() >= 15) return entries.map((entry) => [entry]);
+
+  const cellSize = map.getZoom() <= 8 ? 72 : 56;
+  const groups = new Map();
+  for (const entry of entries) {
+    const point = map.project(entry.point, map.getZoom());
+    const key = `${Math.floor(point.x / cellSize)}:${Math.floor(point.y / cellSize)}`;
+    const group = groups.get(key) || [];
+    group.push(entry);
+    groups.set(key, group);
+  }
+  return [...groups.values()];
+}
+
+function addRestaurantMarker(layerGroup, item, options) {
+  const { latitude, longitude } = item.coordinates;
+  const label = `${item.name}, ${getLocality(item)}`;
+  const marker = window.L.marker([latitude, longitude], {
+    title: label,
+    keyboard: true,
+    icon: window.L.divIcon({
+      className: "emoji-map-marker",
+      html: `<span aria-hidden="true">${pickEmoji(item)}</span>`,
+      iconSize: options.iconSize || [24, 24],
+      iconAnchor: options.iconAnchor || [12, 12],
+    }),
+  }).addTo(layerGroup);
+
+  const markerElement = marker.getElement();
+  markerElement?.setAttribute("aria-label", label);
+
+  if (options.clickable !== false) {
+    marker.bindTooltip(
+      `<strong>${escapeHtml(pickEmoji(item))} ${escapeHtml(item.name)}</strong><br>${escapeHtml(getLocality(item))}`,
+      { direction: "top", offset: [0, -8] },
+    );
+    marker.on("click", () => {
+      closeMap();
+      selectRestaurant(item.id);
+    });
+  }
+}
+
+function addClusterMarker(layerGroup, group) {
+  const latitude =
+    group.reduce((sum, entry) => sum + entry.point[0], 0) / group.length;
+  const longitude =
+    group.reduce((sum, entry) => sum + entry.point[1], 0) / group.length;
+  const label = `${group.length} podniků v této oblasti`;
+  const marker = window.L.marker([latitude, longitude], {
+    title: label,
+    keyboard: true,
+    icon: window.L.divIcon({
+      className: "cluster-map-marker",
+      html: `<span aria-hidden="true">${group.length}</span>`,
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
+    }),
+  }).addTo(layerGroup);
+
+  const markerElement = marker.getElement();
+  markerElement?.setAttribute("aria-label", label);
+  marker.bindTooltip(label, { direction: "top", offset: [0, -16] });
+  marker.on("click", () => {
+    const clusterBounds = group.map(({ point }) => point);
+    if (clusterBounds.length > 1) {
+      map.fitBounds(clusterBounds, {
+        padding: [48, 48],
+        maxZoom: Math.min(map.getZoom() + 3, 16),
+      });
+    } else {
+      map.setView(clusterBounds[0], Math.min(map.getZoom() + 2, 16));
+    }
+  });
 }
 
 function pickEmoji(item) {

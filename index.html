@@ -76,26 +76,36 @@
           <p>Najděte si podnik. Zbytek je na vaší chuti.</p>
         </section>
         <section class="search-panel" aria-label="Hledání podniků">
-          <label class="search-label" for="query"
-            >Město, podnik nebo chuť</label
-          >
-          <div class="search-row">
-            <input
-              id="query"
-              type="search"
-              value="Praha"
-              placeholder="Třeba Brno, Eska nebo káva"
-              autocomplete="off"
-              enterkeyhint="search"
-            /><button
-              id="clearBtn"
-              type="button"
-              aria-label="Vymazat hledání a filtry"
-            >
-              Vymazat
+          <div class="search-panel-head">
+            <h2>Najít podnik</h2>
+            <button id="clearBtn" class="text-btn" type="button">
+              Vymazat vše
             </button>
           </div>
-          <div class="quick-filter-row" aria-label="Rychlé filtry měst">
+          <div class="search-fields">
+            <label class="search-field" for="locationQuery">
+              <span>Kde</span>
+              <input
+                id="locationQuery"
+                type="search"
+                value="Praha"
+                placeholder="Město nebo oblast"
+                autocomplete="address-level2"
+                enterkeyhint="next"
+              />
+            </label>
+            <label class="search-field" for="query">
+              <span>Co hledáte</span>
+              <input
+                id="query"
+                type="search"
+                placeholder="Podnik, kuchyně nebo chuť"
+                autocomplete="off"
+                enterkeyhint="search"
+              />
+            </label>
+          </div>
+          <div class="quick-filter-row" aria-label="Rychlá volba lokality">
             <button class="quick-filter-chip" type="button" data-query="Praha">
               Praha</button
             ><button class="quick-filter-chip" type="button" data-query="Brno">
@@ -108,6 +118,9 @@
               data-query="Liberec"
             >
               Liberec
+            </button
+            ><button id="nearMeBtn" class="quick-filter-chip" type="button">
+              ◎ Okolí
             </button>
           </div>
           <div class="filter-row">
@@ -115,7 +128,7 @@
             ><select id="tagFilter">
               <option value="">Všechny typy</option></select
             ><button id="openMapBtn" class="primary-btn" type="button">
-              Zobrazit mapu ↗
+              Mapa
             </button>
           </div>
         </section>
@@ -194,20 +207,27 @@
             </button>
             <button
               id="closeMapBtn"
-              class="detail-close-btn"
+              class="ghost-btn map-list-btn"
               type="button"
-              aria-label="Zavřít mapu"
+              aria-label="Zobrazit seznam podniků"
             >
-              ×
+              Seznam
             </button>
           </div>
         </div>
         <div class="map-filters">
           <input
-            aria-label="Hledání na mapě"
+            aria-label="Lokalita na mapě"
+            id="mapLocationQuery"
+            type="search"
+            placeholder="Město nebo oblast"
+            autocomplete="address-level2"
+          />
+          <input
+            aria-label="Podnik nebo chuť na mapě"
             id="mapQuery"
             type="search"
-            placeholder="Filtrovat podle názvu, města nebo typu…"
+            placeholder="Podnik nebo chuť"
             autocomplete="off"
           />
           <select aria-label="Typ podniku na mapě" id="mapTagFilter">
@@ -223,10 +243,14 @@
         <button class="result-hit" type="button">
           <div class="result-top">
             <h3></h3>
-            <span class="score-badge"></span>
+            <span class="availability-badge"></span>
           </div>
+          <p class="result-locality"></p>
           <p class="result-address"></p>
-          <div class="tag-row"></div>
+          <div class="result-bottom">
+            <div class="tag-row"></div>
+            <span class="result-distance"></span>
+          </div>
         </button>
       </article>
     </template>
